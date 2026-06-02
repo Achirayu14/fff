@@ -1,64 +1,87 @@
-# BOT-PD-BAD — ระบบเข้าเวร + เช็ค FiveM
+# 🕐 Discord Shift Bot — ระบบบันทึกเวร
 
-โฟลเดอร์บอทแยกจาก `Crirical_Prompt_Candy` แล้ว
+Bot สำหรับบันทึกเวรเข้า-ออกใน Discord พร้อมนับเวลาแบบ real-time
 
-## ไฟล์ในโฟลเดอร์นี้
+---
 
-| ไฟล์ | หน้าที่ |
-|------|--------|
-| `bot.js` | บอทหลัก |
-| `fivemPresence.js` | เช็คอยู่ในเกมไหม |
-| `presenceMonitor.js` | ออกเวรอัตโนมัติเมื่อออกจากเกม |
-| `package.json` | dependencies |
-| `BAD_PD.jpg` | ใส่เอง (รูปปุ่ม !shift) |
-| `.env` | ค่าลับ — สร้างเอง ห้ามอัป GitHub |
+## 🚀 วิธีติดตั้ง
 
-## ติดตั้ง
-
+### 1. ติดตั้ง dependencies
 ```bash
-cd C:\Users\Administrator\Desktop\Bot-PD-BAD
 npm install
 ```
 
-สร้าง `.env` จากตัวอย่างด้านล่าง แล้วรัน:
+### 2. ตั้งค่า Token
+สร้างไฟล์ `.env` แล้วใส่:
+```
+DISCORD_TOKEN=TOKEN_ของคุณ
+```
 
+หรือแก้ไขในไฟล์ `bot.js` บรรทัดสุดท้าย:
+```js
+client.login('TOKEN_ของคุณ');
+```
+
+### 3. รัน Bot
 ```bash
+node bot.js
+# หรือ
 npm start
 ```
 
-## ตัวอย่าง `.env`
+---
 
-```env
-DISCORD_TOKEN=
-CHANNEL_ID_IN=
-CHANNEL_ID_OUT=
-CHANNEL_ID_RESET=
-CHANNEL_ID_ARCHIVE=
-SPREADSHEET_ID=
-SHEET_NAME=ชีต1
-GOOGLE_CLIENT_EMAIL=
-GOOGLE_PRIVATE_KEY=
-FIVEM_JOIN_CODE=67lzxd
-FIVEM_PLAYERS_URL=http://IP:30120/players.json
-PRESENCE_CHECK_MS=60000
-```
+## 🤖 วิธีใช้งาน
 
-## อัป GitHub + Render
+### ตั้งค่าห้อง log
+สร้างห้องชื่อ **`shift-log`** ในเซิร์ฟเวอร์ของคุณ (ต้องตรงกันทุกตัวอักษร)
+Bot จะส่งบันทึกเวรไปที่ห้องนี้อัตโนมัติ
 
-1. อัปโหลดทั้งโฟลเดอร์นี้ไป repo `nutthapong456n-gif/Bot`
-2. Render → Environment → ใส่ค่าเดียวกับ `.env`
-3. รอ Deploy live
+> ต้องการเปลี่ยนชื่อห้อง? แก้ค่า `LOG_CHANNEL_NAME` ในไฟล์ `bot.js`
 
-## ฟีเจอร์
+---
 
-- กดเข้าเวร ไม่อยู่ในเกม → **คุณไม่ได้อยู่ในเกม**
-- กำลังเข้าเวร แล้วออกจาก FiveM → ออกเวรอัตโนมัติ (ทุก 1 นาที ถ้าตั้ง 60000)
-- เช็คเฉพาะคนใน Discord ที่เข้าเวรอยู่
-- คำสั่ง: `!shift` `!shiftlog` `!resetshift` `!clearchannel`
+### คำสั่ง
 
-ดู **CHECKLIST.md** ก่อนอัป GitHub ทุกครั้ง
+| คำสั่ง | ความหมาย |
+|--------|-----------|
+| `!shift` | แสดงปุ่มเข้า/ออกเวร |
+| `!shiftlog` | ดูรายชื่อผู้ที่กำลังเข้าเวรอยู่ |
 
-## หมายเหตุ
+---
 
-- ถ้า FiveM API ล้มตอนกดเข้าเวร → ยังให้เข้าได้ชั่วคราว (กันเซิร์ฟล่ม)
-- ถ้า API ตอบได้แต่รายชื่อว่าง → ถือว่าไม่อยู่ในเกม
+### ปุ่มที่มี
+
+| ปุ่ม | การทำงาน |
+|------|----------|
+| 🟢 เข้าเวร | บันทึกเวลาเข้าเวร + ส่งไปห้อง log + เริ่มนับเวลา |
+| 🔴 ออกเวร | หยุดนับเวลา + อัปเดต log ว่าออกเวรเวลาใด + สรุปชั่วโมงทำงาน |
+| 📊 ดูสถานะ | ดูว่าตัวเองเข้าเวรอยู่กี่ชั่วโมงแล้ว |
+
+---
+
+## 📋 สิ่งที่ Bot ทำในห้อง shift-log
+
+1. **เมื่อเข้าเวร** → ส่ง embed สีเขียว แสดงชื่อ + เวลาเข้าเวร + เวลาที่นับขึ้นเรื่อยๆ
+2. **ระหว่างเข้าเวร** → อัปเดตข้อความทุก 1 นาทีให้เห็นเวลาปัจจุบัน
+3. **เมื่อออกเวร** → อัปเดต embed เดิมเป็นสีแดง + ส่งสรุปใหม่แสดงเวลาเข้า/ออก และรวมชั่วโมง
+
+---
+
+## ⚙️ ตั้งค่า Permissions สำหรับ Bot
+
+ใน Discord Developer Portal ให้เปิด:
+- `Send Messages`
+- `Embed Links`
+- `Read Message History`
+- `View Channels`
+
+และ Privileged Intents:
+- `MESSAGE CONTENT INTENT` ✅
+
+---
+
+## 🛠 เทคโนโลยี
+
+- [discord.js v14](https://discord.js.org)
+- Node.js 18+
