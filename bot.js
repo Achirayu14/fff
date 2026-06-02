@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 const {
   Client,
   GatewayIntentBits,
@@ -18,14 +16,18 @@ const { google } = require('googleapis');
 const { isPlayerInFiveM, MSG_NOT_IN_GAME } = require('./fivemPresence');
 const { startPresenceMonitor } = require('./presenceMonitor');
 
-// ========== ค่าจาก .env / Render Environment ==========
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-const SHEET_NAME = process.env.SHEET_NAME || 'ชีต1';
-const CHANNEL_ID_IN = process.env.CHANNEL_ID_IN;
-const CHANNEL_ID_OUT = process.env.CHANNEL_ID_OUT;
-const CHANNEL_ID_RESET = process.env.CHANNEL_ID_RESET;
-const CHANNEL_ID_ARCHIVE = process.env.CHANNEL_ID_ARCHIVE;
+// ========== Google Sheets ==========
+const SPREADSHEET_ID = '11xMZUUw8lZqY0lqihxCzkCMSYvnoa5VNw3Z1Q1c_Rq4';
+const SHEET_NAME = 'ชีต1';
+
+// ========== Discord Bot Token ==========
+const DISCORD_TOKEN = 'MTQ5MDk0ODM5ODg4OTgyODM2Mg.GeydUk.e6m-_lZWDekTN0iXhQWBQ3YAA26-Fnp7-95wiY';
+
+// ========== ID ห้อง Discord ==========
+const CHANNEL_ID_IN = '1509561704596377690';
+const CHANNEL_ID_OUT = '1509561736850571415';
+const CHANNEL_ID_RESET = '1509971682012430476';
+const CHANNEL_ID_ARCHIVE = '1509972377272979518';
 
 const START_ROW = 4;
 
@@ -35,31 +37,14 @@ const COL_IN = 'C';
 const COL_OUT = 'D';
 const COL_TOTAL = 'E';
 
-function validateEnv() {
-  const required = [
-    'DISCORD_TOKEN',
-    'CHANNEL_ID_IN',
-    'CHANNEL_ID_OUT',
-    'CHANNEL_ID_RESET',
-    'CHANNEL_ID_ARCHIVE',
-    'SPREADSHEET_ID',
-    'GOOGLE_CLIENT_EMAIL',
-    'GOOGLE_PRIVATE_KEY',
-  ];
-  const missing = required.filter((k) => !process.env[k]);
-  if (missing.length) {
-    console.error('❌ ขาดค่าใน .env / Render Environment:');
-    missing.forEach((k) => console.error(`   - ${k}`));
-    process.exit(1);
-  }
-}
+const GOOGLE_CLIENT_EMAIL = 'firebase-adminsdk-fbsvc@achi-c415e.iam.gserviceaccount.com';
+const GOOGLE_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC5AcEUgwpucUue\nKUPn9k+r7nZ4vH9erDri6M67IAmda+s1u/w2IOYP5vabWpMB5b4uxBaCSDPfwsWk\n2xScYtB6ocNWtq9P0j02VopYvFfIdav7PcZ9jKy5BCFdRvP2pPWaBQBJ3MaPEz47\nFXqWgGcsQqbBHj8ra2WxR96kJLPRSDq3MQ2MjrH/0G2m/CK04A/91vkOKApiS9ll\nvtgBtLMoCWAdcCRP7Imfbk2Wz+yrGckYtWW0O3v0YXItjniTfAEBFFYi4LYuuZfV\nNrSGVoP536z5lupImGBxq/wk4bBpqVAQPuSB37Mv76TP9Gg91CJBFjpr0zm4TPqj\nrGPFwB51AgMBAAECggEAIyn2sXfgvTIyjbrJKecyqHq4MOWfDfcNcECQvpdtzGqN\nN9blrsIdCEu9drTF+VfaCJiDsLqZhX/HQjjT14+ekZh6gNpTQwgyU0gqnogZ5UOc\nbzIELqvUzou+7bRFPY2IEwC9V8yrPtmI/ADunnmEYrC+cjlWB2Iv33zKEAfb17yg\nWHp1AQk9dKlXxkufDxu2qvOLyWUSB8FTg9b2VwgNrWksGdkXf8ytyUq6J24eiviB\nvztJ3BBOUGNSrv2OJ4ud7nteBFZV+umnKYpPiRrlLOcRow3cOZ0eNS3Gw4aMKj2B\nQyEYfv99LMcFCK5tUnIf2suJ5SDtG28mHalPguNUMQKBgQDqzpBCNBO5m4FqRA7L\n8WgtpwGvlavjTUHvXxb7WG8S831DuVu2a7aoc3Qd6HHqj5bCo2luZAvF4ak7eXtt\n8e62n2NXLPSHgO6P1jBnxROr8CzcLOtvNPXLoy6CVlgXvPDb3uqJ1UgSYd6w4Ayb\nR+Zlf2JPfrrn0EwuRAmvdvppjQKBgQDJtIN1F050syC7hnPaAtf08fjgmPLzx2Xl\nr6v/2HXgYMw93nMqJUXd7N0BE8srDfUCf0N0s3pGT1qhgNMComt2lf0mTWSTrzqd\nOiGfG0nYoLS/JKlGqRwIve0KeRaQzCvPO7C9sIH2miDnnMPdwP0yOHOg7U3fUvqR\n+FW5nb6qiQKBgAgciq8+zU+kJ5xcLYauGEM7ebtvGDkJ+jUiu9CDBZNKBhHI3Xo3\nzl+TXXeLCCRqQXMH4iSGIEH9wbLkR3dM3EpCx1PDoc7sjVE6vQFYtY1DBsm0Y427\n7qHSSVEHWpO3Wzq9QKzySUMZTnAdzVGv8i2fcO3+GsbXU0pl30/IdG4hAoGAZ1/w\nj64mM4EqoXFDJtSWQZ9R4ioBOhdTjef+ytzxbNGvW3YKp+r6Z8bhbY/rbGF21JTM\nyZ7CaA57cJJJkuwTD2/Hkj3P8jC4ZaRJXvXpXvDeMahkaSZ6i7BrMBbnDcbWHRuG\ndXFk6jIL8yhQ6fHi0j5EZJG6e15XtUAFD2BdO6ECgYA1rM6YbYFKjcTZACoPSco/\nEPmBWv8siPqkWVEmzrDv/yt5aIT8izsr2n4nyTkmfrWqvKp+mcyOsbzQEgZoqyod\nW7tyRGteTaV3eb7cwL4/T9tqBC99mL+tAh7DsBNFhfloQydK8i7daXA2DyLMSMKL\nkqkqb3PlZ/IXsQB2GmQP/A==\n-----END PRIVATE KEY-----\n';
 
 async function getSheetsClient() {
-  const privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
   const auth = new google.auth.GoogleAuth({
     credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: privateKey,
+      client_email: GOOGLE_CLIENT_EMAIL,
+      private_key: GOOGLE_PRIVATE_KEY,
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
@@ -753,5 +738,4 @@ http
   })
   .listen(process.env.PORT || 3000);
 
-validateEnv();
 client.login(DISCORD_TOKEN);
