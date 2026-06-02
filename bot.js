@@ -21,7 +21,7 @@ const SPREADSHEET_ID = '11xMZUUw8lZqY0lqihxCzkCMSYvnoa5VNw3Z1Q1c_Rq4';
 const SHEET_NAME = 'ชีต1';
 
 // ========== Discord Bot Token ==========
-const DISCORD_TOKEN = 'MTQ5MDk0ODM5ODg4OTgyODM2Mg.GeydUk.e6m-_lZWDekTN0iXhQWBQ3YAA26-Fnp7-95wiY';
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // ========== ID ห้อง Discord ==========
 const CHANNEL_ID_IN = '1509561704596377690';
@@ -37,14 +37,14 @@ const COL_IN = 'C';
 const COL_OUT = 'D';
 const COL_TOTAL = 'E';
 
-const GOOGLE_CLIENT_EMAIL = 'firebase-adminsdk-fbsvc@achi-c415e.iam.gserviceaccount.com';
-const GOOGLE_PRIVATE_KEY = require('./googlePrivateKey');
+const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
+const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;
 
 async function getSheetsClient() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: GOOGLE_CLIENT_EMAIL,
-      private_key: GOOGLE_PRIVATE_KEY,
+      private_key: GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
