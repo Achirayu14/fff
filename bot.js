@@ -21,7 +21,7 @@ const SPREADSHEET_ID = '11xMZUUw8lZqY0lqihxCzkCMSYvnoa5VNw3Z1Q1c_Rq4';
 const SHEET_NAME = 'ชีต1';
 
 // ========== Discord Bot Token ==========
-const DISCORD_TOKEN = 'ใส่_DISCORD_TOKEN_ของคุณที่นี่';
+const DISCORD_TOKEN = 'MTQ5MDk0ODM5ODg4OTgyODM2Mg.GeydUk.e6m-_lZWDekTN0iXhQWBQ3YAA26-Fnp7-95wiY';
 
 // ========== ID ห้อง Discord ==========
 const CHANNEL_ID_IN = '1509561704596377690';
