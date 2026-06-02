@@ -1,6 +1,7 @@
 {
   "name": "bot-pd-bad",
   "version": "1.0.0",
+  "description": "Discord bot บันทึกเวร + เช็ค FiveM",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
