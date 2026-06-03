@@ -529,23 +529,16 @@ client.on('messageCreate', async (message) => {
     const idInput = message.content.trim();
     if (/^\d+$/.test(idInput)) {
       const pending = pendingIdCheck.get(message.author.id);
-
-      async function replyPrivate(text) {
-        await message.delete().catch(() => {});
-        const m = await message.channel.send({ content: `<@${message.author.id}> ${text}` });
-        setTimeout(() => m.delete().catch(() => {}), 10000);
-      }
-
       const player = await getPlayerById(idInput);
       if (!player) {
-        await replyPrivate(`❌ ไม่พบ ID **${idInput}** ในเกมขณะนี้\nกรุณาตรวจสอบ ID อีกครั้ง หรือเข้าเกมแล้วลองใหม่`);
+        await message.reply(`❌ ไม่พบ ID **${idInput}** ในเกมขณะนี้\nกรุณาตรวจสอบ ID อีกครั้ง หรือเข้าเกมแล้วลองใหม่`);
         return;
       }
-
+      // เจอ ID แต่ชื่อไม่ตรง → แจ้งให้เปลี่ยนชื่อ
       const gameMatch = namesMatch(pending.displayName, player.name);
       if (!gameMatch) {
         pendingIdCheck.delete(message.author.id);
-        await replyPrivate([
+        await message.reply([
           `⚠️ **พบ ID ${idInput} ในเกมแล้ว** แต่ชื่อไม่ตรงกัน`,
           `ชื่อในเกม: **${player.name}**`,
           `ชื่อ Discord: **${pending.displayName}**`,
@@ -554,9 +547,9 @@ client.on('messageCreate', async (message) => {
         ].join('\n'));
         return;
       }
-
+      // ชื่อตรง → ผ่าน ดำเนินการเข้าเวรต่อ (ไม่ต้องทำอะไร แค่ลบออกจาก pendingIdCheck)
       pendingIdCheck.delete(message.author.id);
-      await replyPrivate('✅ ยืนยันตัวตนสำเร็จ กรุณากด **เข้าเวร** อีกครั้งได้เลยครับ');
+      await message.reply('✅ ยืนยันตัวตนสำเร็จ กรุณากด **เข้าเวร** อีกครั้งได้เลยครับ');
       return;
     }
   }
@@ -662,16 +655,20 @@ client.on('interactionCreate', async (interaction) => {
       } else {
         // ชื่อไม่ตรง → ให้กรอก ID
         pendingIdCheck.set(user.id, { displayName: displayNameForCheck, startTime: new Date() });
-        return replyThenDelete(interaction, {
+        await interaction.reply({
           content: [
             '❌ **ไม่พบชื่อของคุณในเกม**',
             `ชื่อ Discord: **${displayNameForCheck}**`,
             '',
             '📌 ถ้าคุณอยู่ในเกมอยู่จริง กรุณาพิมพ์ **ID ในเกม** ของคุณในช่องนี้',
+            '_(ดู ID ได้ที่มุมล่างขวาของจอในเกม เช่น `ID: 452`)_',
             '',
             '⚠️ ถ้าชื่อในเกมไม่ตรงกับ Discord กรุณาเปลี่ยนชื่อ Discord ให้ตรงแล้วลองใหม่',
           ].join('\n'),
-        }, 60);
+          ephemeral: true,
+        });
+        setTimeout(() => interaction.deleteReply().catch(() => {}), 15000);
+        return;
       }
     }
 
@@ -791,15 +788,8 @@ http
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
-
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
     const url = new URL(req.url, `http://localhost`);
-
     if (url.pathname === '/players') {
       try {
         const players = await fetchFiveMPlayers(true);
@@ -813,14 +803,11 @@ http
       }
       return;
     }
-
     res.writeHead(200);
     res.end('Bot is alive!');
   })
   .listen(process.env.PORT || 3000);
 
 console.log(`🌐 HTTP server เปิดที่ port ${process.env.PORT || 3000}`);
-
-client.login(DISCORD_TOKEN);
 
 client.login(DISCORD_TOKEN);
