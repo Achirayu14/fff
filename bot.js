@@ -787,8 +787,6 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-const { fetchFiveMPlayers } = require('./fivemPresence');
-
 http
   .createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
