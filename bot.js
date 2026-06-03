@@ -787,10 +787,43 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
+const { fetchFiveMPlayers } = require('./fivemPresence');
+
 http
-  .createServer((_, res) => {
+  .createServer(async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    const url = new URL(req.url, `http://localhost`);
+
+    if (url.pathname === '/players') {
+      try {
+        const players = await fetchFiveMPlayers(true);
+        res.setHeader('Content-Type', 'application/json');
+        res.writeHead(200);
+        res.end(JSON.stringify({ ok: true, players: players || [], count: players ? players.length : 0 }));
+      } catch (err) {
+        res.setHeader('Content-Type', 'application/json');
+        res.writeHead(500);
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    res.writeHead(200);
     res.end('Bot is alive!');
   })
   .listen(process.env.PORT || 3000);
+
+console.log(`🌐 HTTP server เปิดที่ port ${process.env.PORT || 3000}`);
+
+client.login(DISCORD_TOKEN);
 
 client.login(DISCORD_TOKEN);
