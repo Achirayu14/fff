@@ -121,7 +121,7 @@ async function getPlayerById(id) {
 }
 
 const MSG_NOT_IN_GAME =
-  '❌ **คุณไม่ได้อยู่ในเกม**\nกรุณาเข้า FiveM Server ก่อน แล้วค่อยกด **เข้าเวร**';
+  '❌ **คุณไม่ได้อยู่ในเกม**\nกรุณาเข้า FiveM ก่อน แล้วค่อยกด **เข้าเวร**';
 
 module.exports = {
   normalizeName,
