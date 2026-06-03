@@ -319,9 +319,9 @@ client.once('ready', () => {
   console.log(`📋 กำลังทำงานใน ${client.guilds.cache.size} เซิร์ฟเวอร์`);
   scheduleMonthlyReset(client);
 
-  // ===== เช็คลืมออกเวร (1 ชั่วโมง) =====
+  // ===== เช็คลืมออกเวร (แจ้งเตือนทุก 1 ชั่วโมง ไม่ยกเลิกเวร) =====
   const CHANNEL_ID_FORGOT = '1511668609271988365';
-  const MAX_SHIFT_MS = 60 * 60 * 1000;
+  const MAX_SHIFT_MS = 60 * 60 * 1000; // 1 ชั่วโมง
 
   setInterval(async () => {
     if (activeShifts.size === 0) return;
@@ -329,10 +329,16 @@ client.once('ready', () => {
 
     for (const [userId, shift] of activeShifts.entries()) {
       if (pendingPhoto.has(userId)) continue;
+
       const elapsed = now - shift.startTime.getTime();
       if (elapsed < MAX_SHIFT_MS) continue;
 
-      activeShifts.delete(userId);
+      // ป้องกันแจ้งซ้ำ — เตือนซ้ำทุก 1 ชม. เท่านั้น
+      const lastWarnTime = shift._lastWarnTime || 0;
+      if (now - lastWarnTime < MAX_SHIFT_MS) continue;
+
+      // บันทึกเวลาที่เตือนล่าสุด (ไม่ลบ shift ออก)
+      shift._lastWarnTime = now;
 
       const guild = client.guilds.cache.get(shift.guildId);
       let displayName = 'Unknown';
@@ -340,42 +346,32 @@ client.once('ready', () => {
         try {
           const member = await guild.members.fetch(userId);
           displayName = member.nickname || member.displayName || member.user.username;
-          await lockUserInChannel(CHANNEL_ID_IN, guild, userId);
         } catch (_) {}
       }
 
-      // ลบ log เข้าเวรออก
-      const logInChannel = await getChannelById(CHANNEL_ID_IN);
-      if (logInChannel && shift.logMessageId) {
-        try {
-          const logMsg = await logInChannel.messages.fetch(shift.logMessageId);
-          await logMsg.delete();
-        } catch (_) {}
-      }
-
-      // แจ้งห้องลืมออกเวร
+      // แจ้งเตือนเฉยๆ ไม่ลบ log ไม่ยกเลิกเวร
       const forgotChannel = await getChannelById(CHANNEL_ID_FORGOT);
       if (forgotChannel) {
         const elapsedSec = Math.floor(elapsed / 1000);
         const embed = new EmbedBuilder()
-          .setTitle('⚠️ ลืมกดออกเวร!')
-          .setDescription(`<@${userId}> ลืมกดออกเวร — **ไม่บันทึกเวลางานวันนี้**`)
+          .setTitle('⚠️ เตือน: ยังไม่ได้กดออกเวร!')
+          .setDescription(`<@${userId}> ยังไม่ได้กดออกเวร — **เวรยังคงดำเนินอยู่**`)
           .addFields(
             { name: '👤 พนักงาน', value: displayName, inline: true },
             { name: '🕐 เข้าเวรตั้งแต่', value: discordFullTime(shift.startTime), inline: true },
-            { name: '⏱️ ทำงานนานกว่า', value: formatDurationThai(elapsedSec), inline: false },
-            { name: '📌 หมายเหตุ', value: 'ระบบยกเลิก log วันนี้แล้ว กรุณาติดต่อผู้ดูแล', inline: false },
+            { name: '⏱️ ทำงานมาแล้ว', value: formatDurationThai(elapsedSec), inline: false },
+            { name: '📌 หมายเหตุ', value: 'กรุณากดปุ่ม **ออกเวร** เพื่อบันทึกเวลาให้ถูกต้อง', inline: false },
           )
-          .setColor(0xed4245)
+          .setColor(0xffa500)
           .setTimestamp();
         await forgotChannel.send({ content: `<@${userId}>`, embeds: [embed] });
       }
 
-      console.log(`⚠️ ลืมออกเวร (ไม่บันทึก): ${displayName}`);
+      console.log(`⚠️ เตือนลืมออกเวร (ยังไม่ยกเลิก): ${displayName}`);
     }
-  }, 60 * 1000);
+  }, 60 * 1000); // เช็คทุก 1 นาที
 
-  console.log('👁️ เช็คลืมออกเวรทุก 1 นาที (หมดเวลา 1 ชั่วโมง)');
+  console.log('👁️ เช็คลืมออกเวรทุก 1 นาที (แจ้งเตือนทุก 1 ชม. ไม่ยกเลิกเวร)');
 });
 
 client.on('messageCreate', async (message) => {
