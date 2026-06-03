@@ -8,124 +8,241 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:#1a1a2e;color:#e2e2e2;font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;}
-  .card{background:#16213e;border:1px solid #0f3460;border-radius:16px;padding:1.5rem;width:100%;max-width:640px;}
 
+  /* LOGIN */
+  #loginWrap{width:100%;max-width:400px;margin-top:8vh;}
+  .login-card{background:#16213e;border:1px solid #0f3460;border-radius:16px;padding:2rem 1.75rem;}
+  .logo-row{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:1.75rem;}
+  .logo-icon{width:54px;height:54px;border-radius:14px;background:#7F77DD;display:flex;align-items:center;justify-content:center;}
+  .logo-icon i{font-size:26px;color:#fff;}
+  .logo-row h1{font-size:16px;font-weight:600;color:#fff;text-align:center;}
+  .logo-row p{font-size:12px;color:#8892b0;text-align:center;}
+  .badge{background:#3C3489;color:#CECBF6;font-size:10px;padding:2px 10px;border-radius:20px;font-weight:600;}
+  .lbl{display:block;font-size:12px;color:#8892b0;margin-bottom:6px;margin-top:1rem;}
+  .inp-wrap{position:relative;}
+  .inp-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:17px;color:#534AB7;pointer-events:none;}
+  .key-input{width:100%;height:44px;padding:0 44px;background:#0f1729;border:1px solid #0f3460;border-radius:8px;color:#e2e2e2;font-size:14px;outline:none;font-family:inherit;letter-spacing:.5px;transition:border .15s,box-shadow .15s;}
+  .key-input:focus{border-color:#7F77DD;box-shadow:0 0 0 3px rgba(127,119,221,.18);}
+  .key-input::placeholder{color:#3a4060;letter-spacing:0;}
+  .vis-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8892b0;font-size:17px;padding:0;}
+  .vis-btn:hover{color:#7F77DD;}
+  .verify-btn{width:100%;height:44px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:1.25rem;background:#7F77DD;color:#fff;transition:all .15s;}
+  .verify-btn:hover{background:#534AB7;}
+  .verify-btn:active{transform:scale(0.98);}
+  .verify-btn:disabled{background:#3C3489;color:#CECBF6;cursor:not-allowed;transform:none;}
+  .msg{border-radius:8px;padding:10px 14px;margin-top:12px;font-size:13px;display:flex;align-items:flex-start;gap:10px;}
+  .msg-err{background:rgba(226,75,74,.12);border:1px solid rgba(226,75,74,.35);}
+  .msg-ok{background:rgba(99,153,34,.12);border:1px solid rgba(99,153,34,.35);}
+  .msg-load{background:rgba(127,119,221,.1);border:1px solid rgba(127,119,221,.3);}
+  .msg i{margin-top:1px;flex-shrink:0;}
+  .msg-err i{color:#E24B4A;} .msg-ok i{color:#97C459;} .msg-load i{color:#7F77DD;}
+  .msg-txt{font-size:13px;line-height:1.5;}
+  .msg-err .msg-txt{color:#F09595;} .msg-ok .msg-txt{color:#97C459;} .msg-load .msg-txt{color:#AFA9EC;}
+  .spin{animation:spin .9s linear infinite;display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* MAIN APP */
+  #appWrap{display:none;width:100%;}
+  .card{background:#16213e;border:1px solid #0f3460;border-radius:16px;padding:1.5rem;width:100%;max-width:640px;margin:0 auto;}
+  .key-info-bar{display:flex;align-items:center;justify-content:space-between;background:#0f1729;border:1px solid #0f3460;border-radius:8px;padding:6px 12px;margin-bottom:1rem;font-size:12px;color:#8892b0;}
+  .logout-btn{background:none;border:none;color:#8892b0;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;padding:0;}
+  .logout-btn:hover{color:#F09595;}
   .header{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;}
   .logo{width:42px;height:42px;border-radius:10px;background:#7F77DD;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .logo i{font-size:22px;color:#fff;}
   .htxt h1{font-size:15px;font-weight:600;color:#fff;}
   .htxt p{font-size:12px;color:#8892b0;margin-top:2px;}
-  .badge{background:#3C3489;color:#CECBF6;font-size:10px;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:600;}
-
+  .badge2{background:#3C3489;color:#CECBF6;font-size:10px;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:600;}
   .tab-row{display:flex;gap:6px;margin-bottom:1rem;}
   .tab{flex:1;padding:8px;border-radius:8px;border:1px solid #0f3460;background:transparent;color:#8892b0;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;}
   .tab:hover{background:#0f3460;}
   .tab.active{background:#7F77DD;color:#fff;border-color:#534AB7;}
-
-  .panel{display:none;}
-  .panel.show{display:block;}
-
+  .panel{display:none;} .panel.show{display:block;}
   .search-row{display:flex;gap:8px;margin-bottom:10px;}
   input[type=text],textarea{background:#0f1729;border:1px solid #0f3460;border-radius:8px;color:#e2e2e2;font-size:14px;padding:0 12px;outline:none;font-family:inherit;}
   input[type=text]{flex:1;height:40px;}
   input[type=text]:focus,textarea:focus{border-color:#7F77DD;box-shadow:0 0 0 2px rgba(127,119,221,.2);}
   textarea{width:100%;height:90px;padding:10px 12px;resize:none;margin-bottom:10px;}
-
   .btn{height:40px;padding:0 16px;border-radius:8px;border:1px solid #0f3460;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:transparent;color:#8892b0;transition:all .15s;white-space:nowrap;}
-  .btn:hover{background:#0f3460;color:#e2e2e2;}
-  .btn:active{transform:scale(0.97);}
-  .btn-primary{background:#7F77DD;color:#fff;border-color:#534AB7;}
-  .btn-primary:hover{background:#534AB7;}
+  .btn:hover{background:#0f3460;color:#e2e2e2;} .btn:active{transform:scale(0.97);}
+  .btn-primary{background:#7F77DD;color:#fff;border-color:#534AB7;} .btn-primary:hover{background:#534AB7;}
   .btn-row{display:flex;gap:8px;margin-bottom:12px;}
-
   .result-box{border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;display:flex;align-items:flex-start;gap:10px;}
   .rb-green{background:rgba(99,153,34,.15);border:1px solid rgba(99,153,34,.4);}
   .rb-red{background:rgba(226,75,74,.15);border:1px solid rgba(226,75,74,.4);}
   .rb-amber{background:rgba(186,117,23,.15);border:1px solid rgba(186,117,23,.4);}
   .rb-gray{background:rgba(136,146,176,.08);border:1px solid rgba(136,146,176,.2);}
   .dot{width:9px;height:9px;border-radius:50%;margin-top:3px;flex-shrink:0;}
-  .d-green{background:#639922;}
-  .d-red{background:#E24B4A;}
-  .d-amber{background:#BA7517;}
-  .d-gray{background:#8892b0;}
-  .rb-name{font-weight:600;font-size:13px;}
-  .rb-sub{font-size:12px;color:#8892b0;margin-top:2px;}
-  .rb-green .rb-name{color:#97C459;}
-  .rb-red .rb-name{color:#F09595;}
-  .rb-amber .rb-name{color:#EF9F27;}
-
+  .d-green{background:#639922;} .d-red{background:#E24B4A;} .d-amber{background:#BA7517;} .d-gray{background:#8892b0;}
+  .rb-name{font-weight:600;font-size:13px;} .rb-sub{font-size:12px;color:#8892b0;margin-top:2px;}
+  .rb-green .rb-name{color:#97C459;} .rb-red .rb-name{color:#F09595;} .rb-amber .rb-name{color:#EF9F27;}
   .sec-label{font-size:12px;color:#8892b0;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;}
   .count-badge{background:#0f3460;color:#8892b0;font-size:11px;padding:2px 8px;border-radius:20px;}
   .player-list{background:#0f1729;border-radius:8px;border:1px solid #0f3460;max-height:220px;overflow-y:auto;}
   .pitem{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #0f3460;font-size:13px;}
   .pitem:last-child{border-bottom:none;}
-  .pid{color:#8892b0;font-size:11px;min-width:24px;}
-  .pitem.hi{background:rgba(99,153,34,.12);}
+  .pid{color:#8892b0;font-size:11px;min-width:24px;} .pitem.hi{background:rgba(99,153,34,.12);}
   .empty{text-align:center;padding:20px 0;color:#8892b0;font-size:13px;}
-
   .divider{border:none;border-top:1px solid #0f3460;margin:1rem 0;}
-
-  ::-webkit-scrollbar{width:4px;}
-  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:#0f3460;border-radius:4px;}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="header">
-    <div class="logo"><i class="ti ti-shield"></i></div>
-    <div class="htxt">
-      <h1>BAD TOWN — ระบบเช็คในประเทศ <span class="badge">POLICE</span></h1>
-      <p>FiveM Presence Checker · Real-time</p>
-    </div>
-  </div>
 
-  <div class="tab-row">
-    <button class="tab active" onclick="switchTab('single')">
-      <i class="ti ti-user" style="font-size:15px"></i> เช็คเดี่ยว
+<!-- LOGIN PAGE -->
+<div id="loginWrap">
+  <div class="login-card">
+    <div class="logo-row">
+      <div class="logo-icon"><i class="ti ti-shield-check"></i></div>
+      <h1>BAD TOWN <span class="badge">POLICE</span></h1>
+      <p>กรุณายืนยัน License Key ก่อนเข้าใช้งาน</p>
+    </div>
+    <label class="lbl" for="keyInput"><i class="ti ti-key" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>License Key</label>
+    <div class="inp-wrap">
+      <i class="ti ti-key inp-icon"></i>
+      <input class="key-input" type="text" id="keyInput" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false"/>
+      <button class="vis-btn" onclick="toggleVis()" title="แสดง/ซ่อน"><i class="ti ti-eye" id="visIcon"></i></button>
+    </div>
+    <button class="verify-btn" id="verifyBtn" onclick="verifyKey()">
+      <i class="ti ti-shield-check"></i> ยืนยัน License
     </button>
-    <button class="tab" onclick="switchTab('bulk')">
-      <i class="ti ti-users" style="font-size:15px"></i> เช็คทั้งหมด
-    </button>
+    <div id="msgBox" style="display:none;"></div>
   </div>
+</div>
 
-  <div class="panel show" id="panel-single">
-    <div class="search-row">
-      <input type="text" id="nameInput" placeholder="ใส่ชื่อ Discord / ชื่อในเกม..." />
-      <button class="btn btn-primary" onclick="checkSingle()"><i class="ti ti-map-search"></i> เช็ค</button>
+<!-- MAIN APP PAGE -->
+<div id="appWrap">
+  <div class="card">
+    <div class="key-info-bar">
+      <span style="color:#97C459;"><i class="ti ti-circle-check" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i><span id="keyInfoText">License Active</span></span>
+      <button class="logout-btn" onclick="logout()"><i class="ti ti-logout" style="font-size:13px"></i> ออกจากระบบ</button>
     </div>
-    <div id="singleResult"></div>
-  </div>
-
-  <div class="panel" id="panel-bulk">
-    <textarea id="bulkInput" placeholder="ใส่ชื่อทีละบรรทัด เช่น&#10;Dachi Dip&#10;SomeName&#10;AnotherName"></textarea>
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="checkBulk()"><i class="ti ti-list-check"></i> เช็คทั้งหมด</button>
-      <button class="btn" onclick="clearBulk()"><i class="ti ti-trash"></i> ล้าง</button>
+    <div class="header">
+      <div class="logo"><i class="ti ti-shield"></i></div>
+      <div class="htxt">
+        <h1>BAD TOWN — ระบบเช็คในประเทศ <span class="badge2">POLICE</span></h1>
+        <p>FiveM Presence Checker · Real-time</p>
+      </div>
     </div>
-    <div id="bulkResults"></div>
-  </div>
-
-  <hr class="divider" />
-
-  <div class="sec-label">
-    <span><i class="ti ti-map-pin" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>ผู้เล่นในประเทศ</span>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span class="count-badge" id="countBadge">—</span>
-      <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="loadPlayers(true)">
-        <i class="ti ti-refresh" style="font-size:13px"></i> รีเฟรช
-      </button>
+    <div class="tab-row">
+      <button class="tab active" onclick="switchTab('single')"><i class="ti ti-user" style="font-size:15px"></i> เช็คเดี่ยว</button>
+      <button class="tab" onclick="switchTab('bulk')"><i class="ti ti-users" style="font-size:15px"></i> เช็คทั้งหมด</button>
     </div>
-  </div>
-  <div class="player-list" id="playerList">
-    <div class="empty"><i class="ti ti-loader-2" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>กำลังโหลด...</div>
+    <div class="panel show" id="panel-single">
+      <div class="search-row">
+        <input type="text" id="nameInput" placeholder="ใส่ชื่อ Discord / ชื่อในเกม..." />
+        <button class="btn btn-primary" onclick="checkSingle()"><i class="ti ti-map-search"></i> เช็ค</button>
+      </div>
+      <div id="singleResult"></div>
+    </div>
+    <div class="panel" id="panel-bulk">
+      <textarea id="bulkInput" placeholder="ใส่ชื่อทีละบรรทัด เช่น&#10;Dachi Dip&#10;SomeName&#10;AnotherName"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="checkBulk()"><i class="ti ti-list-check"></i> เช็คทั้งหมด</button>
+        <button class="btn" onclick="clearBulk()"><i class="ti ti-trash"></i> ล้าง</button>
+      </div>
+      <div id="bulkResults"></div>
+    </div>
+    <hr class="divider" />
+    <div class="sec-label">
+      <span><i class="ti ti-map-pin" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>ผู้เล่นในประเทศ</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="count-badge" id="countBadge">—</span>
+        <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="loadPlayers(true)">
+          <i class="ti ti-refresh" style="font-size:13px"></i> รีเฟรช
+        </button>
+      </div>
+    </div>
+    <div class="player-list" id="playerList">
+      <div class="empty"><i class="ti ti-loader-2" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>กำลังโหลด...</div>
+    </div>
   </div>
 </div>
 
 <script>
-// ===== ตั้งค่า URL ของ Bot =====
-const BOT_URL = 'https://ffff-uc16.onrender.com';
+const KA_OWNER = '3a7ea3ef161c0689315e1f8328ad11a70ef169284fe015e925138b127076d572';
+const KA_APP   = 'i0AaGiE6b4';
+const KA_VER   = '1.0';
+const KA_NAME  = "Fourm6348's Application";
+const BOT_URL  = 'https://ffff-uc16.onrender.com';
 
+let masked = true;
+const keyInp = document.getElementById('keyInput');
+const visIcon = document.getElementById('visIcon');
+keyInp.style.webkitTextSecurity = 'disc';
+
+function toggleVis() {
+  masked = !masked;
+  keyInp.style.webkitTextSecurity = masked ? 'disc' : 'none';
+  visIcon.className = masked ? 'ti ti-eye' : 'ti ti-eye-off';
+}
+keyInp.addEventListener('keydown', e => { if (e.key === 'Enter') verifyKey(); });
+
+function showMsg(type, icon, html) {
+  const b = document.getElementById('msgBox');
+  b.style.display = 'flex';
+  b.className = 'msg msg-' + type;
+  b.innerHTML = '<i class="ti ti-' + icon + (type==='load'?' spin':'') + '"></i><span class="msg-txt">' + html + '</span>';
+}
+
+async function verifyKey() {
+  const key = keyInp.value.trim();
+  if (!key) { showMsg('err','alert-circle','กรุณาใส่ License Key ก่อน'); return; }
+  const btn = document.getElementById('verifyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> กำลังตรวจสอบ...';
+  showMsg('load','loader-2','กำลังเชื่อมต่อ KeyAuth...');
+  try {
+    const params = new URLSearchParams({ type:'license', key, ownerid:KA_OWNER, appid:KA_APP, ver:KA_VER, name:KA_NAME });
+    const res = await fetch('https://keyauth.win/api/1.3/?' + params);
+    const data = await res.json();
+    if (data.success) {
+      showMsg('ok','circle-check','ยืนยันสำเร็จ! กำลังเข้าสู่ระบบ...');
+      const exp = data.info && data.info.expires ? new Date(data.info.expires*1000).toLocaleDateString('th-TH') : null;
+      setTimeout(() => enterApp(key, exp), 800);
+    } else {
+      let errMsg = 'Key ไม่ถูกต้องหรือหมดอายุแล้ว';
+      if (data.message) {
+        const m = data.message.toLowerCase();
+        if (m.includes('expire')) errMsg = '⏰ License Key หมดอายุแล้ว';
+        else if (m.includes('used') || m.includes('another')) errMsg = '🔒 Key นี้ถูกใช้งานบนอุปกรณ์อื่นแล้ว';
+        else if (m.includes('invalid') || m.includes('not found')) errMsg = '❌ ไม่พบ License Key นี้ในระบบ';
+        else if (m.includes('banned')) errMsg = '🚫 License Key นี้ถูกแบนแล้ว';
+        else errMsg = data.message;
+      }
+      showMsg('err','alert-circle', errMsg + '<br><span style="font-size:12px;color:#8892b0;display:block;margin-top:4px">กรุณาตรวจสอบ Key แล้วลองใหม่</span>');
+      keyInp.focus(); keyInp.select();
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
+    }
+  } catch(e) {
+    showMsg('err','wifi-off','เชื่อมต่อ KeyAuth ไม่ได้ — ตรวจสอบอินเทอร์เน็ต');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
+  }
+}
+
+function enterApp(key, exp) {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'block';
+  const short = key.length > 8 ? key.substring(0,4)+'••••'+key.slice(-4) : '••••';
+  document.getElementById('keyInfoText').textContent = 'License Active · ' + short + (exp ? ' · หมดอายุ ' + exp : '');
+  loadPlayers();
+}
+
+function logout() {
+  document.getElementById('appWrap').style.display = 'none';
+  document.getElementById('loginWrap').style.display = 'block';
+  keyInp.value = '';
+  document.getElementById('msgBox').style.display = 'none';
+  const btn = document.getElementById('verifyBtn');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
+  cachedPlayers = null; lastHighlights = [];
+}
+
+// ===== Main App =====
 let cachedPlayers = null;
 let lastHighlights = [];
 
@@ -146,18 +263,15 @@ function namesMatch(a, b) {
   return words.length > 0 && words.every(w => g.includes(w));
 }
 
-async function fetchPlayers(force = false) {
+async function fetchPlayers(force) {
   if (!force && cachedPlayers !== null) return cachedPlayers;
   try {
-    const r = await fetch(`${BOT_URL}/players`, { signal: AbortSignal.timeout(15000) });
+    const r = await fetch(BOT_URL + '/players', { signal: AbortSignal.timeout(15000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const json = await r.json();
     cachedPlayers = json.players || [];
     return cachedPlayers;
-  } catch (e) {
-    console.warn('fetch players error:', e.message);
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 function renderPlayerList(players, highlights) {
@@ -165,37 +279,26 @@ function renderPlayerList(players, highlights) {
   const cb = document.getElementById('countBadge');
   if (!players) {
     el.innerHTML = '<div class="empty"><i class="ti ti-wifi-off" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>เชื่อมต่อ Bot ไม่ได้</div>';
-    cb.textContent = '—';
-    return;
+    cb.textContent = '—'; return;
   }
   cb.textContent = players.length + ' คน';
-  if (players.length === 0) {
-    el.innerHTML = '<div class="empty">ไม่มีผู้เล่นในเซิร์ฟขณะนี้</div>';
-    return;
-  }
-  el.innerHTML = players.map((p, i) => {
-    const isHi = highlights && highlights.some(h => namesMatch(h, p.name || ''));
-    return `<div class="pitem${isHi ? ' hi' : ''}">
-      <span class="pid">${p.id ?? (i+1)}</span>
-      <i class="ti ti-user" style="font-size:14px;color:#8892b0"></i>
-      <span style="flex:1">${p.name || 'Unknown'}</span>
-      ${isHi ? '<i class="ti ti-check" style="font-size:14px;color:#639922"></i>' : ''}
-    </div>`;
+  if (!players.length) { el.innerHTML = '<div class="empty">ไม่มีผู้เล่นในเซิร์ฟขณะนี้</div>'; return; }
+  el.innerHTML = players.map((p,i) => {
+    const hi = highlights && highlights.some(h => namesMatch(h, p.name||''));
+    return '<div class="pitem'+(hi?' hi':'')+'"><span class="pid">'+(p.id||(i+1))+'</span><i class="ti ti-user" style="font-size:14px;color:#8892b0"></i><span style="flex:1">'+(p.name||'Unknown')+'</span>'+(hi?'<i class="ti ti-check" style="font-size:14px;color:#639922"></i>':'')+'</div>';
   }).join('');
 }
 
 function resultBox(name, match, isNull) {
-  if (isNull) return `<div class="result-box rb-amber"><div class="dot d-amber"></div><div><div class="rb-name">เชื่อมต่อไม่ได้</div><div class="rb-sub">ดึงข้อมูลจาก Bot ไม่ได้ในขณะนี้</div></div></div>`;
-  if (match) return `<div class="result-box rb-green"><div class="dot d-green"></div><div><div class="rb-name">อยู่ในประเทศ — ${name}</div><div class="rb-sub">ชื่อในเกม: ${match.name}${match.id ? ' · ID: ' + match.id : ''}</div></div></div>`;
-  return `<div class="result-box rb-red"><div class="dot d-red"></div><div><div class="rb-name">ไม่พบในประเทศ — ${name}</div><div class="rb-sub">ไม่พบชื่อตรงกับ "${name}" ในเซิร์ฟ</div></div></div>`;
+  if (isNull) return '<div class="result-box rb-amber"><div class="dot d-amber"></div><div><div class="rb-name">เชื่อมต่อไม่ได้</div><div class="rb-sub">ดึงข้อมูลจาก Bot ไม่ได้ในขณะนี้</div></div></div>';
+  if (match) return '<div class="result-box rb-green"><div class="dot d-green"></div><div><div class="rb-name">อยู่ในประเทศ — '+name+'</div><div class="rb-sub">ชื่อในเกม: '+match.name+(match.id?' · ID: '+match.id:'')+'</div></div></div>';
+  return '<div class="result-box rb-red"><div class="dot d-red"></div><div><div class="rb-name">ไม่พบในประเทศ — '+name+'</div><div class="rb-sub">ไม่พบชื่อตรงกับ "'+name+'" ในเซิร์ฟ</div></div></div>';
 }
 
-async function loadPlayers(force = false) {
+async function loadPlayers(force) {
   if (force) cachedPlayers = null;
   document.getElementById('playerList').innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>กำลังโหลด...</div>';
-  const players = await fetchPlayers(force);
-  renderPlayerList(players, lastHighlights);
-  return players;
+  renderPlayerList(await fetchPlayers(force), lastHighlights);
 }
 
 async function checkSingle() {
@@ -203,59 +306,47 @@ async function checkSingle() {
   const area = document.getElementById('singleResult');
   if (!name) { area.innerHTML = ''; return; }
   lastHighlights = [name];
-  area.innerHTML = `<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค ${name}...</div></div>`;
+  area.innerHTML = '<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค '+name+'...</div></div>';
   const players = await fetchPlayers();
   renderPlayerList(players, [name]);
-  if (players === null) { area.innerHTML = resultBox(name, null, true); return; }
-  const matches = players.filter(p => namesMatch(name, p.name || '') || (p.name || '').toLowerCase().includes(name.toLowerCase()));
-  if (matches.length === 0) {
-    area.innerHTML = resultBox(name, null, false);
+  if (!players) { area.innerHTML = resultBox(name,null,true); return; }
+  const matches = players.filter(p => namesMatch(name,p.name||'') || (p.name||'').toLowerCase().includes(name.toLowerCase()));
+  if (!matches.length) {
+    area.innerHTML = resultBox(name,null,false);
   } else if (matches.length === 1) {
-    area.innerHTML = resultBox(name, matches[0], false);
+    area.innerHTML = resultBox(name,matches[0],false);
   } else {
-    area.innerHTML = `
-      <div class="result-box rb-green">
-        <div class="dot d-green"></div>
-        <div>
-          <div class="rb-name">พบ ${matches.length} คน ที่มีคำว่า "${name}"</div>
-          ${matches.map(m => `<div class="rb-sub">· ${m.name}${m.id ? ' · ID: ' + m.id : ''}</div>`).join('')}
-        </div>
-      </div>`;
+    area.innerHTML = '<div class="result-box rb-green"><div class="dot d-green"></div><div><div class="rb-name">พบ '+matches.length+' คน ที่มีคำว่า "'+name+'"</div>'+matches.map(m=>'<div class="rb-sub">· '+m.name+(m.id?' · ID: '+m.id:'')+'</div>').join('')+'</div></div>';
   }
 }
 
 async function checkBulk() {
-  const names = document.getElementById('bulkInput').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const names = document.getElementById('bulkInput').value.split('\n').map(s=>s.trim()).filter(Boolean);
   const area = document.getElementById('bulkResults');
-  if (!names.length) { area.innerHTML = ''; return; }
+  if (!names.length) { area.innerHTML=''; return; }
   lastHighlights = names;
-  area.innerHTML = `<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค ${names.length} คน...</div></div>`;
+  area.innerHTML = '<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค '+names.length+' คน...</div></div>';
   const players = await fetchPlayers();
   renderPlayerList(players, names);
-  if (players === null) { area.innerHTML = names.map(n => resultBox(n, null, true)).join(''); return; }
-  area.innerHTML = names.map(n => {
-    const match = players.find(p => namesMatch(n, p.name || ''));
-    return resultBox(n, match, false);
-  }).join('');
+  if (!players) { area.innerHTML = names.map(n=>resultBox(n,null,true)).join(''); return; }
+  area.innerHTML = names.map(n=>resultBox(n,players.find(p=>namesMatch(n,p.name||'')),false)).join('');
 }
 
 function clearBulk() {
-  document.getElementById('bulkInput').value = '';
-  document.getElementById('bulkResults').innerHTML = '';
-  lastHighlights = [];
+  document.getElementById('bulkInput').value='';
+  document.getElementById('bulkResults').innerHTML='';
+  lastHighlights=[];
 }
 
 function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', (i === 0 && t === 'single') || (i === 1 && t === 'bulk'));
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',(i===0&&t==='single')||(i===1&&t==='bulk'));
   });
-  document.getElementById('panel-single').classList.toggle('show', t === 'single');
-  document.getElementById('panel-bulk').classList.toggle('show', t === 'bulk');
+  document.getElementById('panel-single').classList.toggle('show',t==='single');
+  document.getElementById('panel-bulk').classList.toggle('show',t==='bulk');
 }
 
-document.getElementById('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkSingle(); });
-
-loadPlayers();
+document.getElementById('nameInput').addEventListener('keydown',e=>{ if(e.key==='Enter') checkSingle(); });
 </script>
 </body>
 </html>
