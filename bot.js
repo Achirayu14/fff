@@ -14,7 +14,6 @@ const path = require('path');
 const { Buffer } = require('buffer');
 const { google } = require('googleapis');
 const { isPlayerInFiveM, getPlayerById, fetchFiveMPlayers, namesMatch, MSG_NOT_IN_GAME } = require('./fivemPresence');
-const { startPresenceMonitor } = require('./presenceMonitor');
 
 // ========== Google Sheets ==========
 const SPREADSHEET_ID = '11xMZUUw8lZqY0lqihxCzkCMSYvnoa5VNw3Z1Q1c_Rq4';
@@ -319,20 +318,64 @@ client.once('ready', () => {
   console.log(`✅ Bot พร้อมใช้งาน: ${client.user.tag}`);
   console.log(`📋 กำลังทำงานใน ${client.guilds.cache.size} เซิร์ฟเวอร์`);
   scheduleMonthlyReset(client);
-  startPresenceMonitor(client, {
-    activeShifts,
-    pendingPhoto,
-    CHANNEL_ID_IN,
-    CHANNEL_ID_OUT,
-    CHANNEL_ID_ARCHIVE,
-    formatDurationThai,
-    formatTime,
-    formatDate,
-    discordFullTime,
-    writeShiftToSheet,
-    lockUserInChannel,
-    getChannelById,
-  });
+
+  // ===== เช็คลืมออกเวร (1 ชั่วโมง) =====
+  const CHANNEL_ID_FORGOT = '1511668609271988365';
+  const MAX_SHIFT_MS = 60 * 60 * 1000;
+
+  setInterval(async () => {
+    if (activeShifts.size === 0) return;
+    const now = Date.now();
+
+    for (const [userId, shift] of activeShifts.entries()) {
+      if (pendingPhoto.has(userId)) continue;
+      const elapsed = now - shift.startTime.getTime();
+      if (elapsed < MAX_SHIFT_MS) continue;
+
+      activeShifts.delete(userId);
+
+      const guild = client.guilds.cache.get(shift.guildId);
+      let displayName = 'Unknown';
+      if (guild) {
+        try {
+          const member = await guild.members.fetch(userId);
+          displayName = member.nickname || member.displayName || member.user.username;
+          await lockUserInChannel(CHANNEL_ID_IN, guild, userId);
+        } catch (_) {}
+      }
+
+      // ลบ log เข้าเวรออก
+      const logInChannel = await getChannelById(CHANNEL_ID_IN);
+      if (logInChannel && shift.logMessageId) {
+        try {
+          const logMsg = await logInChannel.messages.fetch(shift.logMessageId);
+          await logMsg.delete();
+        } catch (_) {}
+      }
+
+      // แจ้งห้องลืมออกเวร
+      const forgotChannel = await getChannelById(CHANNEL_ID_FORGOT);
+      if (forgotChannel) {
+        const elapsedSec = Math.floor(elapsed / 1000);
+        const embed = new EmbedBuilder()
+          .setTitle('⚠️ ลืมกดออกเวร!')
+          .setDescription(`<@${userId}> ลืมกดออกเวร — **ไม่บันทึกเวลางานวันนี้**`)
+          .addFields(
+            { name: '👤 พนักงาน', value: displayName, inline: true },
+            { name: '🕐 เข้าเวรตั้งแต่', value: discordFullTime(shift.startTime), inline: true },
+            { name: '⏱️ ทำงานนานกว่า', value: formatDurationThai(elapsedSec), inline: false },
+            { name: '📌 หมายเหตุ', value: 'ระบบยกเลิก log วันนี้แล้ว กรุณาติดต่อผู้ดูแล', inline: false },
+          )
+          .setColor(0xed4245)
+          .setTimestamp();
+        await forgotChannel.send({ content: `<@${userId}>`, embeds: [embed] });
+      }
+
+      console.log(`⚠️ ลืมออกเวร (ไม่บันทึก): ${displayName}`);
+    }
+  }, 60 * 1000);
+
+  console.log('👁️ เช็คลืมออกเวรทุก 1 นาที (หมดเวลา 1 ชั่วโมง)');
 });
 
 client.on('messageCreate', async (message) => {
