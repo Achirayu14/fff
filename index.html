@@ -186,6 +186,15 @@ function showMsg(type, icon, html) {
   b.innerHTML = '<i class="ti ti-' + icon + (type==='load'?' spin':'') + '"></i><span class="msg-txt">' + html + '</span>';
 }
 
+function generateSessionId() {
+  return [...Array(32)].map(() => Math.random().toString(36)[2]).join('');
+}
+
+async function kaRequest(params) {
+  const res = await fetch('https://keyauth.win/api/1.3/?' + new URLSearchParams(params));
+  return res.json();
+}
+
 async function verifyKey() {
   const key = keyInp.value.trim();
   if (!key) { showMsg('err','alert-circle','กรุณาใส่ License Key ก่อน'); return; }
@@ -194,9 +203,30 @@ async function verifyKey() {
   btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> กำลังตรวจสอบ...';
   showMsg('load','loader-2','กำลังเชื่อมต่อ KeyAuth...');
   try {
-    const params = new URLSearchParams({ type:'license', key, ownerid:KA_OWNER, appid:KA_APP, ver:KA_VER, name:KA_NAME });
-    const res = await fetch('https://keyauth.win/api/1.3/?' + params);
-    const data = await res.json();
+    const sessionid = generateSessionId();
+
+    const initData = await kaRequest({
+      type: 'init',
+      ver: KA_VER,
+      name: KA_NAME,
+      ownerid: KA_OWNER,
+      sessionid,
+    });
+
+    if (!initData.success) {
+      showMsg('err','alert-circle', 'เชื่อมต่อ KeyAuth ไม่ได้: ' + (initData.message || 'init failed'));
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
+      return;
+    }
+
+    const data = await kaRequest({
+      type: 'license',
+      key,
+      ownerid: KA_OWNER,
+      sessionid,
+    });
+
     if (data.success) {
       showMsg('ok','circle-check','ยืนยันสำเร็จ! กำลังเข้าสู่ระบบ...');
       const exp = data.info && data.info.expires ? new Date(data.info.expires*1000).toLocaleDateString('th-TH') : null;
