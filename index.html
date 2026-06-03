@@ -207,8 +207,21 @@ async function checkSingle() {
   const players = await fetchPlayers();
   renderPlayerList(players, [name]);
   if (players === null) { area.innerHTML = resultBox(name, null, true); return; }
-  const match = players.find(p => namesMatch(name, p.name || ''));
-  area.innerHTML = resultBox(name, match, false);
+  const matches = players.filter(p => namesMatch(name, p.name || '') || (p.name || '').toLowerCase().includes(name.toLowerCase()));
+  if (matches.length === 0) {
+    area.innerHTML = resultBox(name, null, false);
+  } else if (matches.length === 1) {
+    area.innerHTML = resultBox(name, matches[0], false);
+  } else {
+    area.innerHTML = `
+      <div class="result-box rb-green">
+        <div class="dot d-green"></div>
+        <div>
+          <div class="rb-name">พบ ${matches.length} คน ที่มีคำว่า "${name}"</div>
+          ${matches.map(m => `<div class="rb-sub">· ${m.name}${m.id ? ' · ID: ' + m.id : ''}</div>`).join('')}
+        </div>
+      </div>`;
+  }
 }
 
 async function checkBulk() {
