@@ -4,8 +4,8 @@
 const https = require('https');
 const http = require('http');
 
-const FIVEM_JOIN_CODE = process.env.FIVEM_JOIN_CODE || '67lzxd';
-const FIVEM_PLAYERS_URL = process.env.FIVEM_PLAYERS_URL || '';
+const FIVEM_JOIN_CODE = process.env.FIVEM_JOIN_CODE || 'a4z58zk';
+const FIVEM_PLAYERS_URL = process.env.FIVEM_PLAYERS_URL || 'http://89.38.101.34:30120/players.json';
 const FIVEM_FRONTEND_URL =
   process.env.FIVEM_FRONTEND_URL ||
   `https://servers-frontend.fivem.net/api/servers/single/${FIVEM_JOIN_CODE}`;
