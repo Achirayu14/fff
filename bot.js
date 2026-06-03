@@ -529,16 +529,23 @@ client.on('messageCreate', async (message) => {
     const idInput = message.content.trim();
     if (/^\d+$/.test(idInput)) {
       const pending = pendingIdCheck.get(message.author.id);
+
+      async function replyPrivate(text) {
+        await message.delete().catch(() => {});
+        const m = await message.channel.send({ content: `<@${message.author.id}> ${text}` });
+        setTimeout(() => m.delete().catch(() => {}), 10000);
+      }
+
       const player = await getPlayerById(idInput);
       if (!player) {
-        await message.reply(`❌ ไม่พบ ID **${idInput}** ในเกมขณะนี้\nกรุณาตรวจสอบ ID อีกครั้ง หรือเข้าเกมแล้วลองใหม่`);
+        await replyPrivate(`❌ ไม่พบ ID **${idInput}** ในเกมขณะนี้\nกรุณาตรวจสอบ ID อีกครั้ง หรือเข้าเกมแล้วลองใหม่`);
         return;
       }
-      // เจอ ID แต่ชื่อไม่ตรง → แจ้งให้เปลี่ยนชื่อ
+
       const gameMatch = namesMatch(pending.displayName, player.name);
       if (!gameMatch) {
         pendingIdCheck.delete(message.author.id);
-        await message.reply([
+        await replyPrivate([
           `⚠️ **พบ ID ${idInput} ในเกมแล้ว** แต่ชื่อไม่ตรงกัน`,
           `ชื่อในเกม: **${player.name}**`,
           `ชื่อ Discord: **${pending.displayName}**`,
@@ -547,9 +554,9 @@ client.on('messageCreate', async (message) => {
         ].join('\n'));
         return;
       }
-      // ชื่อตรง → ผ่าน ดำเนินการเข้าเวรต่อ (ไม่ต้องทำอะไร แค่ลบออกจาก pendingIdCheck)
+
       pendingIdCheck.delete(message.author.id);
-      await message.reply('✅ ยืนยันตัวตนสำเร็จ กรุณากด **เข้าเวร** อีกครั้งได้เลยครับ');
+      await replyPrivate('✅ ยืนยันตัวตนสำเร็จ กรุณากด **เข้าเวร** อีกครั้งได้เลยครับ');
       return;
     }
   }
@@ -781,34 +788,7 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 http
-  .createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
-
-    const url = new URL(req.url, `http://localhost`);
-
-    if (url.pathname === '/players') {
-      try {
-        const players = await fetchFiveMPlayers(true);
-        res.setHeader('Content-Type', 'application/json');
-        res.writeHead(200);
-        res.end(JSON.stringify({ ok: true, players: players || [], count: players ? players.length : 0 }));
-      } catch (err) {
-        res.setHeader('Content-Type', 'application/json');
-        res.writeHead(500);
-        res.end(JSON.stringify({ ok: false, error: err.message }));
-      }
-      return;
-    }
-
-    res.writeHead(200);
+  .createServer((_, res) => {
     res.end('Bot is alive!');
   })
   .listen(process.env.PORT || 3000);
