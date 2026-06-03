@@ -199,8 +199,12 @@ async function writeShiftToSheet(userId, username, startTime, endTime, guild) {
       range: `${SHEET_NAME}!B${START_ROW}:F`,
     });
     const rows = existing.data.values || [];
-    const rowIndex = rows.findIndex((row) => row[0] === dateStr && row[1] === displayName);
-
+    const rowIndex = rows.findIndex((row) => {
+      const rowDate = (row[0] || '').trim();
+      const rowName = (row[1] || '').trim().toLowerCase();
+      return rowDate === dateStr.trim() && rowName === displayName.trim().toLowerCase();
+    });
+    
     let totalSeconds = elapsed;
     if (rowIndex !== -1) {
       const existingTotal = rows[rowIndex][4];
