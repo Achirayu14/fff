@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BAD TOWN — เช็คในประเทศ</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#1a1a2e;color:#e2e2e2;font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;}
+  .card{background:#16213e;border:1px solid #0f3460;border-radius:16px;padding:1.5rem;width:100%;max-width:640px;}
+
+  .header{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;}
+  .logo{width:42px;height:42px;border-radius:10px;background:#7F77DD;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .logo i{font-size:22px;color:#fff;}
+  .htxt h1{font-size:15px;font-weight:600;color:#fff;}
+  .htxt p{font-size:12px;color:#8892b0;margin-top:2px;}
+  .badge{background:#3C3489;color:#CECBF6;font-size:10px;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:600;}
+
+  .tab-row{display:flex;gap:6px;margin-bottom:1rem;}
+  .tab{flex:1;padding:8px;border-radius:8px;border:1px solid #0f3460;background:transparent;color:#8892b0;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;}
+  .tab:hover{background:#0f3460;}
+  .tab.active{background:#7F77DD;color:#fff;border-color:#534AB7;}
+
+  .panel{display:none;}
+  .panel.show{display:block;}
+
+  .search-row{display:flex;gap:8px;margin-bottom:10px;}
+  input[type=text],textarea{background:#0f1729;border:1px solid #0f3460;border-radius:8px;color:#e2e2e2;font-size:14px;padding:0 12px;outline:none;font-family:inherit;}
+  input[type=text]{flex:1;height:40px;}
+  input[type=text]:focus,textarea:focus{border-color:#7F77DD;box-shadow:0 0 0 2px rgba(127,119,221,.2);}
+  textarea{width:100%;height:90px;padding:10px 12px;resize:none;margin-bottom:10px;}
+
+  .btn{height:40px;padding:0 16px;border-radius:8px;border:1px solid #0f3460;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:transparent;color:#8892b0;transition:all .15s;white-space:nowrap;}
+  .btn:hover{background:#0f3460;color:#e2e2e2;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:#7F77DD;color:#fff;border-color:#534AB7;}
+  .btn-primary:hover{background:#534AB7;}
+  .btn-row{display:flex;gap:8px;margin-bottom:12px;}
+
+  .result-box{border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;display:flex;align-items:flex-start;gap:10px;}
+  .rb-green{background:rgba(99,153,34,.15);border:1px solid rgba(99,153,34,.4);}
+  .rb-red{background:rgba(226,75,74,.15);border:1px solid rgba(226,75,74,.4);}
+  .rb-amber{background:rgba(186,117,23,.15);border:1px solid rgba(186,117,23,.4);}
+  .rb-gray{background:rgba(136,146,176,.08);border:1px solid rgba(136,146,176,.2);}
+  .dot{width:9px;height:9px;border-radius:50%;margin-top:3px;flex-shrink:0;}
+  .d-green{background:#639922;}
+  .d-red{background:#E24B4A;}
+  .d-amber{background:#BA7517;}
+  .d-gray{background:#8892b0;}
+  .rb-name{font-weight:600;font-size:13px;}
+  .rb-sub{font-size:12px;color:#8892b0;margin-top:2px;}
+  .rb-green .rb-name{color:#97C459;}
+  .rb-red .rb-name{color:#F09595;}
+  .rb-amber .rb-name{color:#EF9F27;}
+
+  .sec-label{font-size:12px;color:#8892b0;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;}
+  .count-badge{background:#0f3460;color:#8892b0;font-size:11px;padding:2px 8px;border-radius:20px;}
+  .player-list{background:#0f1729;border-radius:8px;border:1px solid #0f3460;max-height:220px;overflow-y:auto;}
+  .pitem{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #0f3460;font-size:13px;}
+  .pitem:last-child{border-bottom:none;}
+  .pid{color:#8892b0;font-size:11px;min-width:24px;}
+  .pitem.hi{background:rgba(99,153,34,.12);}
+  .empty{text-align:center;padding:20px 0;color:#8892b0;font-size:13px;}
+
+  .divider{border:none;border-top:1px solid #0f3460;margin:1rem 0;}
+
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#0f3460;border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="logo"><i class="ti ti-shield"></i></div>
+    <div class="htxt">
+      <h1>BAD TOWN — ระบบเช็คในประเทศ <span class="badge">POLICE</span></h1>
+      <p>FiveM Presence Checker · Real-time</p>
+    </div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab active" onclick="switchTab('single')">
+      <i class="ti ti-user" style="font-size:15px"></i> เช็คเดี่ยว
+    </button>
+    <button class="tab" onclick="switchTab('bulk')">
+      <i class="ti ti-users" style="font-size:15px"></i> เช็คทั้งหมด
+    </button>
+  </div>
+
+  <div class="panel show" id="panel-single">
+    <div class="search-row">
+      <input type="text" id="nameInput" placeholder="ใส่ชื่อ Discord / ชื่อในเกม..." />
+      <button class="btn btn-primary" onclick="checkSingle()"><i class="ti ti-map-search"></i> เช็ค</button>
+    </div>
+    <div id="singleResult"></div>
+  </div>
+
+  <div class="panel" id="panel-bulk">
+    <textarea id="bulkInput" placeholder="ใส่ชื่อทีละบรรทัด เช่น&#10;Dachi Dip&#10;SomeName&#10;AnotherName"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="checkBulk()"><i class="ti ti-list-check"></i> เช็คทั้งหมด</button>
+      <button class="btn" onclick="clearBulk()"><i class="ti ti-trash"></i> ล้าง</button>
+    </div>
+    <div id="bulkResults"></div>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="sec-label">
+    <span><i class="ti ti-map-pin" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>ผู้เล่นในประเทศ</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="count-badge" id="countBadge">—</span>
+      <button class="btn" style="height:28px;font-size:12px;padding:0 10px;" onclick="loadPlayers(true)">
+        <i class="ti ti-refresh" style="font-size:13px"></i> รีเฟรช
+      </button>
+    </div>
+  </div>
+  <div class="player-list" id="playerList">
+    <div class="empty"><i class="ti ti-loader-2" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>กำลังโหลด...</div>
+  </div>
+</div>
+
+<script>
+// ===== ตั้งค่า URL ของ Bot =====
+const BOT_URL = 'https://bot-pd-bad.onrender.com';
+
+let cachedPlayers = null;
+let lastHighlights = [];
+
+function normalizeName(str) {
+  if (!str) return '';
+  return str.toLowerCase().trim()
+    .replace(/[\|\[\]\(\)\{\}\/\<>_*~`]/g, ' ')
+    .replace(/\b\d+\b/g, ' ')
+    .replace(/[^a-z0-9\u0E00-\u0E7F\s]/g, '')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function namesMatch(a, b) {
+  const d = normalizeName(a), g = normalizeName(b);
+  if (!d || !g) return false;
+  if (d === g || g.includes(d) || d.includes(g)) return true;
+  const words = d.split(' ').filter(w => w.length > 1);
+  return words.length > 0 && words.every(w => g.includes(w));
+}
+
+async function fetchPlayers(force = false) {
+  if (!force && cachedPlayers !== null) return cachedPlayers;
+  try {
+    const r = await fetch(`${BOT_URL}/players`, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const json = await r.json();
+    cachedPlayers = json.players || [];
+    return cachedPlayers;
+  } catch (e) {
+    console.warn('fetch players error:', e.message);
+    return null;
+  }
+}
+
+function renderPlayerList(players, highlights) {
+  const el = document.getElementById('playerList');
+  const cb = document.getElementById('countBadge');
+  if (!players) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-wifi-off" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>เชื่อมต่อ Bot ไม่ได้</div>';
+    cb.textContent = '—';
+    return;
+  }
+  cb.textContent = players.length + ' คน';
+  if (players.length === 0) {
+    el.innerHTML = '<div class="empty">ไม่มีผู้เล่นในเซิร์ฟขณะนี้</div>';
+    return;
+  }
+  el.innerHTML = players.map((p, i) => {
+    const isHi = highlights && highlights.some(h => namesMatch(h, p.name || ''));
+    return `<div class="pitem${isHi ? ' hi' : ''}">
+      <span class="pid">${p.id ?? (i+1)}</span>
+      <i class="ti ti-user" style="font-size:14px;color:#8892b0"></i>
+      <span style="flex:1">${p.name || 'Unknown'}</span>
+      ${isHi ? '<i class="ti ti-check" style="font-size:14px;color:#639922"></i>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function resultBox(name, match, isNull) {
+  if (isNull) return `<div class="result-box rb-amber"><div class="dot d-amber"></div><div><div class="rb-name">เชื่อมต่อไม่ได้</div><div class="rb-sub">ดึงข้อมูลจาก Bot ไม่ได้ในขณะนี้</div></div></div>`;
+  if (match) return `<div class="result-box rb-green"><div class="dot d-green"></div><div><div class="rb-name">อยู่ในประเทศ — ${name}</div><div class="rb-sub">ชื่อในเกม: ${match.name}${match.id ? ' · ID: ' + match.id : ''}</div></div></div>`;
+  return `<div class="result-box rb-red"><div class="dot d-red"></div><div><div class="rb-name">ไม่พบในประเทศ — ${name}</div><div class="rb-sub">ไม่พบชื่อตรงกับ "${name}" ในเซิร์ฟ</div></div></div>`;
+}
+
+async function loadPlayers(force = false) {
+  if (force) cachedPlayers = null;
+  document.getElementById('playerList').innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>กำลังโหลด...</div>';
+  const players = await fetchPlayers(force);
+  renderPlayerList(players, lastHighlights);
+  return players;
+}
+
+async function checkSingle() {
+  const name = document.getElementById('nameInput').value.trim();
+  const area = document.getElementById('singleResult');
+  if (!name) { area.innerHTML = ''; return; }
+  lastHighlights = [name];
+  area.innerHTML = `<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค ${name}...</div></div>`;
+  const players = await fetchPlayers();
+  renderPlayerList(players, [name]);
+  if (players === null) { area.innerHTML = resultBox(name, null, true); return; }
+  const match = players.find(p => namesMatch(name, p.name || ''));
+  area.innerHTML = resultBox(name, match, false);
+}
+
+async function checkBulk() {
+  const names = document.getElementById('bulkInput').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const area = document.getElementById('bulkResults');
+  if (!names.length) { area.innerHTML = ''; return; }
+  lastHighlights = names;
+  area.innerHTML = `<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค ${names.length} คน...</div></div>`;
+  const players = await fetchPlayers();
+  renderPlayerList(players, names);
+  if (players === null) { area.innerHTML = names.map(n => resultBox(n, null, true)).join(''); return; }
+  area.innerHTML = names.map(n => {
+    const match = players.find(p => namesMatch(n, p.name || ''));
+    return resultBox(n, match, false);
+  }).join('');
+}
+
+function clearBulk() {
+  document.getElementById('bulkInput').value = '';
+  document.getElementById('bulkResults').innerHTML = '';
+  lastHighlights = [];
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0 && t === 'single') || (i === 1 && t === 'bulk'));
+  });
+  document.getElementById('panel-single').classList.toggle('show', t === 'single');
+  document.getElementById('panel-bulk').classList.toggle('show', t === 'bulk');
+}
+
+document.getElementById('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkSingle(); });
+
+loadPlayers();
+</script>
+</body>
+</html>

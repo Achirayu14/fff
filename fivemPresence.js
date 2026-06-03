@@ -20,6 +20,7 @@ function normalizeName(str) {
     .toLowerCase()
     .trim()
     .replace(/[\|\[\]\(\)\{\}\/\<>_*~`]/g, ' ')
+    .replace(/\b\d+\b/g, ' ')
     .replace(/[^a-z0-9ก-๙\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
