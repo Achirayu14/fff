@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const { Buffer } = require('buffer');
 const { google } = require('googleapis');
-const { isPlayerInFiveM, MSG_NOT_IN_GAME } = require('./fivemPresence');
+const { isPlayerInFiveM, getPlayerById, fetchFiveMPlayers, namesMatch, MSG_NOT_IN_GAME } = require('./fivemPresence');
 const { startPresenceMonitor } = require('./presenceMonitor');
 
 // ========== Google Sheets ==========
@@ -248,6 +248,7 @@ const client = new Client({
 
 const activeShifts = new Map();
 const pendingPhoto = new Map();
+const pendingIdCheck = new Map(); // เก็บ userId ที่รอกรอก ID ในเกม
 
 async function getChannelById(channelId) {
   return client.channels.fetch(channelId).catch((err) => {
@@ -523,6 +524,36 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+  // ===== รับ ID ในเกม (กรณีชื่อไม่ตรง) =====
+  if (pendingIdCheck.has(message.author.id)) {
+    const idInput = message.content.trim();
+    if (/^\d+$/.test(idInput)) {
+      const pending = pendingIdCheck.get(message.author.id);
+      const player = await getPlayerById(idInput);
+      if (!player) {
+        await message.reply(`❌ ไม่พบ ID **${idInput}** ในเกมขณะนี้\nกรุณาตรวจสอบ ID อีกครั้ง หรือเข้าเกมแล้วลองใหม่`);
+        return;
+      }
+      // เจอ ID แต่ชื่อไม่ตรง → แจ้งให้เปลี่ยนชื่อ
+      const gameMatch = namesMatch(pending.displayName, player.name);
+      if (!gameMatch) {
+        pendingIdCheck.delete(message.author.id);
+        await message.reply([
+          `⚠️ **พบ ID ${idInput} ในเกมแล้ว** แต่ชื่อไม่ตรงกัน`,
+          `ชื่อในเกม: **${player.name}**`,
+          `ชื่อ Discord: **${pending.displayName}**`,
+          '',
+          '📌 กรุณาเปลี่ยน **Nickname** ใน Discord Server ให้ตรงกับชื่อในเกม แล้วกด **เข้าเวร** ใหม่อีกครั้ง',
+        ].join('\n'));
+        return;
+      }
+      // ชื่อตรง → ผ่าน ดำเนินการเข้าเวรต่อ (ไม่ต้องทำอะไร แค่ลบออกจาก pendingIdCheck)
+      pendingIdCheck.delete(message.author.id);
+      await message.reply('✅ ยืนยันตัวตนสำเร็จ กรุณากด **เข้าเวร** อีกครั้งได้เลยครับ');
+      return;
+    }
+  }
+
   if (message.content.toLowerCase() === '!shift') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('clock_in').setLabel('🟢 เข้าเวร').setStyle(ButtonStyle.Success),
@@ -618,7 +649,24 @@ client.on('interactionCreate', async (interaction) => {
     const displayNameForCheck = memberForCheck.nickname || memberForCheck.displayName || user.username;
     const inGame = await isPlayerInFiveM(displayNameForCheck);
     if (!inGame) {
-      return replyThenDelete(interaction, { content: MSG_NOT_IN_GAME }, 10);
+      const players = await fetchFiveMPlayers();
+      if (players === null) {
+        // ดึงไม่ได้เลย อนุญาตผ่านชั่วคราว
+      } else {
+        // ชื่อไม่ตรง → ให้กรอก ID
+        pendingIdCheck.set(user.id, { displayName: displayNameForCheck, startTime: new Date() });
+        return replyThenDelete(interaction, {
+          content: [
+            '❌ **ไม่พบชื่อของคุณในเกม**',
+            `ชื่อ Discord: **${displayNameForCheck}**`,
+            '',
+            '📌 ถ้าคุณอยู่ในเกมอยู่จริง กรุณาพิมพ์ **ID ในเกม** ของคุณในช่องนี้',
+            '_(ดู ID ได้ที่มุมล่างขวาของจอในเกม เช่น `ID: 452`)_',
+            '',
+            '⚠️ ถ้าชื่อในเกมไม่ตรงกับ Discord กรุณาเปลี่ยนชื่อ Discord ให้ตรงแล้วลองใหม่',
+          ].join('\n'),
+        }, 60);
+      }
     }
 
     const startTime = new Date();
@@ -732,41 +780,10 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-const { fetchFiveMPlayers } = require('./fivemPresence');
-
 http
-  .createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
-
-    const url = new URL(req.url, `http://localhost`);
-
-    if (url.pathname === '/players') {
-      try {
-        const players = await fetchFiveMPlayers(true);
-        res.setHeader('Content-Type', 'application/json');
-        res.writeHead(200);
-        res.end(JSON.stringify({ ok: true, players: players || [], count: players ? players.length : 0 }));
-      } catch (err) {
-        res.setHeader('Content-Type', 'application/json');
-        res.writeHead(500);
-        res.end(JSON.stringify({ ok: false, error: err.message }));
-      }
-      return;
-    }
-
-    res.writeHead(200);
+  .createServer((_, res) => {
     res.end('Bot is alive!');
   })
   .listen(process.env.PORT || 3000);
-
-console.log(`🌐 HTTP server เปิดที่ port ${process.env.PORT || 3000}`);
 
 client.login(DISCORD_TOKEN);

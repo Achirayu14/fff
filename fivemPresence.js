@@ -114,6 +114,12 @@ async function isPlayerInFiveM(displayName) {
   return players.some((p) => namesMatch(displayName, p.name || ''));
 }
 
+async function getPlayerById(id) {
+  const players = await fetchFiveMPlayers();
+  if (!players) return null;
+  return players.find((p) => String(p.id) === String(id)) || null;
+}
+
 const MSG_NOT_IN_GAME =
   '❌ **คุณไม่ได้อยู่ในเกม**\nกรุณาเข้า FiveM Server ก่อน แล้วค่อยกด **เข้าเวร**';
 
@@ -122,5 +128,6 @@ module.exports = {
   namesMatch,
   fetchFiveMPlayers,
   isPlayerInFiveM,
+  getPlayerById,
   MSG_NOT_IN_GAME,
 };
