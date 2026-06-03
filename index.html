@@ -123,113 +123,8 @@
 </div>
 
 <script>
-const KA_OWNER = 'i0AaGiE6b4';
-const KA_NAME  = "Fourm6348's Application";
-const KA_VER   = '1.0';
-const BOT_URL  = 'https://ffff-uc16.onrender.com';
-
-let masked = true;
-const keyInp = document.getElementById('keyInput');
-const visIcon = document.getElementById('visIcon');
-keyInp.style.webkitTextSecurity = 'disc';
-
-function toggleVis() {
-  masked = !masked;
-  keyInp.style.webkitTextSecurity = masked ? 'disc' : 'none';
-  visIcon.className = masked ? 'ti ti-eye' : 'ti ti-eye-off';
-}
-keyInp.addEventListener('keydown', e => { if (e.key === 'Enter') verifyKey(); });
-
-function showMsg(type, icon, html) {
-  const b = document.getElementById('msgBox');
-  b.style.display = 'flex';
-  b.className = 'msg msg-' + type;
-  b.innerHTML = '<i class="ti ti-' + icon + (type==='load'?' spin':'') + '"></i><span class="msg-txt">' + html + '</span>';
-}
-
-function generateSessionId() {
-  return [...Array(32)].map(() => Math.random().toString(36)[2]).join('');
-}
-
-async function kaRequest(params) {
-  const res = await fetch('https://keyauth.win/api/1.3/?' + new URLSearchParams(params));
-  return res.json();
-}
-
-async function verifyKey() {
-  const key = keyInp.value.trim();
-  if (!key) { showMsg('err','alert-circle','กรุณาใส่ License Key ก่อน'); return; }
-  const btn = document.getElementById('verifyBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> กำลังตรวจสอบ...';
-  showMsg('load','loader-2','กำลังเชื่อมต่อ KeyAuth...');
-  try {
-    const sessionid = generateSessionId();
-
-    const initData = await kaRequest({
-      type: 'init',
-      ver: KA_VER,
-      name: KA_NAME,
-      ownerid: KA_OWNER,
-      sessionid,
-    });
-
-    if (!initData.success) {
-      showMsg('err','alert-circle', 'init ล้มเหลว: ' + (initData.message || 'unknown'));
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
-      return;
-    }
-
-    const sid = initData.sessionid || sessionid;
-    const data = await kaRequest({
-      type: 'license',
-      key,
-      ownerid: KA_OWNER,
-      sessionid: sid,
-    });
-
-    if (data.success) {
-      showMsg('ok','circle-check','ยืนยันสำเร็จ! กำลังเข้าสู่ระบบ...');
-      const exp = data.info && data.info.expires ? new Date(data.info.expires*1000).toLocaleDateString('th-TH') : null;
-      setTimeout(() => enterApp(key, exp), 800);
-    } else {
-      let errMsg = data.message || 'Key ไม่ถูกต้องหรือหมดอายุแล้ว';
-      const m = errMsg.toLowerCase();
-      if (m.includes('expire')) errMsg = '⏰ License Key หมดอายุแล้ว';
-      else if (m.includes('used') || m.includes('another')) errMsg = '🔒 Key นี้ถูกใช้งานบนอุปกรณ์อื่นแล้ว';
-      else if (m.includes('invalid') || m.includes('not found')) errMsg = '❌ ไม่พบ License Key นี้ในระบบ';
-      else if (m.includes('banned')) errMsg = '🚫 License Key นี้ถูกแบนแล้ว';
-      showMsg('err','alert-circle', errMsg + '<br><span style="font-size:12px;color:#8892b0;display:block;margin-top:4px">กรุณาตรวจสอบ Key แล้วลองใหม่</span>');
-      keyInp.focus(); keyInp.select();
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
-    }
-  } catch(e) {
-    showMsg('err','wifi-off','เชื่อมต่อ KeyAuth ไม่ได้ — ตรวจสอบอินเทอร์เน็ต');
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
-  }
-}
-
-function enterApp(key, exp) {
-  document.getElementById('loginWrap').style.display = 'none';
-  document.getElementById('appWrap').style.display = 'block';
-  const short = key.length > 8 ? key.substring(0,4)+'\u25CF\u25CF\u25CF\u25CF'+key.slice(-4) : '\u25CF\u25CF\u25CF\u25CF';
-  document.getElementById('keyInfoText').textContent = 'License Active \u00B7 ' + short + (exp ? ' \u00B7 \u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38 ' + exp : '');
-  loadPlayers();
-}
-
-function logout() {
-  document.getElementById('appWrap').style.display = 'none';
-  document.getElementById('loginWrap').style.display = 'block';
-  keyInp.value = '';
-  document.getElementById('msgBox').style.display = 'none';
-  const btn = document.getElementById('verifyBtn');
-  btn.disabled = false;
-  btn.innerHTML = '<i class="ti ti-shield-check"></i> ยืนยัน License';
-  cachedPlayers = null; lastHighlights = [];
-}
+// ===== ตั้งค่า URL ของ Bot =====
+const BOT_URL = 'https://ffff-uc16.onrender.com';
 
 let cachedPlayers = null;
 let lastHighlights = [];
@@ -251,42 +146,56 @@ function namesMatch(a, b) {
   return words.length > 0 && words.every(w => g.includes(w));
 }
 
-async function fetchPlayers(force) {
+async function fetchPlayers(force = false) {
   if (!force && cachedPlayers !== null) return cachedPlayers;
   try {
-    const r = await fetch(BOT_URL + '/players', { signal: AbortSignal.timeout(15000) });
+    const r = await fetch(`${BOT_URL}/players`, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const json = await r.json();
     cachedPlayers = json.players || [];
     return cachedPlayers;
-  } catch (e) { return null; }
+  } catch (e) {
+    console.warn('fetch players error:', e.message);
+    return null;
+  }
 }
 
 function renderPlayerList(players, highlights) {
   const el = document.getElementById('playerList');
   const cb = document.getElementById('countBadge');
   if (!players) {
-    el.innerHTML = '<div class="empty"><i class="ti ti-wifi-off" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>\u0E40\u0E0A\u0E37\u0E48\u0E2D\u0E21\u0E15\u0E48\u0E2D Bot \u0E44\u0E21\u0E48\u0E44\u0E14\u0E49</div>';
-    cb.textContent = '\u2014'; return;
+    el.innerHTML = '<div class="empty"><i class="ti ti-wifi-off" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>เชื่อมต่อ Bot ไม่ได้</div>';
+    cb.textContent = '—';
+    return;
   }
-  cb.textContent = players.length + ' \u0E04\u0E19';
-  if (!players.length) { el.innerHTML = '<div class="empty">\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1C\u0E39\u0E49\u0E40\u0E25\u0E48\u0E19\u0E43\u0E19\u0E40\u0E0B\u0E34\u0E23\u0E4C\u0E1F\u0E02\u0E13\u0E30\u0E19\u0E35\u0E49</div>'; return; }
-  el.innerHTML = players.map((p,i) => {
-    const hi = highlights && highlights.some(h => namesMatch(h, p.name||''));
-    return '<div class="pitem'+(hi?' hi':'')+'"><span class="pid">'+(p.id||(i+1))+'</span><i class="ti ti-user" style="font-size:14px;color:#8892b0"></i><span style="flex:1">'+(p.name||'Unknown')+'</span>'+(hi?'<i class="ti ti-check" style="font-size:14px;color:#639922"></i>':'')+'</div>';
+  cb.textContent = players.length + ' คน';
+  if (players.length === 0) {
+    el.innerHTML = '<div class="empty">ไม่มีผู้เล่นในเซิร์ฟขณะนี้</div>';
+    return;
+  }
+  el.innerHTML = players.map((p, i) => {
+    const isHi = highlights && highlights.some(h => namesMatch(h, p.name || ''));
+    return `<div class="pitem${isHi ? ' hi' : ''}">
+      <span class="pid">${p.id ?? (i+1)}</span>
+      <i class="ti ti-user" style="font-size:14px;color:#8892b0"></i>
+      <span style="flex:1">${p.name || 'Unknown'}</span>
+      ${isHi ? '<i class="ti ti-check" style="font-size:14px;color:#639922"></i>' : ''}
+    </div>`;
   }).join('');
 }
 
 function resultBox(name, match, isNull) {
-  if (isNull) return '<div class="result-box rb-amber"><div class="dot d-amber"></div><div><div class="rb-name">\u0E40\u0E0A\u0E37\u0E48\u0E2D\u0E21\u0E15\u0E48\u0E2D\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49</div><div class="rb-sub">\u0E14\u0E36\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E08\u0E32\u0E01 Bot \u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E43\u0E19\u0E02\u0E13\u0E30\u0E19\u0E35\u0E49</div></div></div>';
-  if (match) return '<div class="result-box rb-green"><div class="dot d-green"></div><div><div class="rb-name">\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E1B\u0E23\u0E30\u0E40\u0E17\u0E28 \u2014 '+name+'</div><div class="rb-sub">\u0E0A\u0E37\u0E48\u0E2D\u0E43\u0E19\u0E40\u0E01\u0E21: '+match.name+(match.id?' \u00B7 ID: '+match.id:'')+'</div></div></div>';
-  return '<div class="result-box rb-red"><div class="dot d-red"></div><div><div class="rb-name">\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E43\u0E19\u0E1B\u0E23\u0E30\u0E40\u0E17\u0E28 \u2014 '+name+'</div><div class="rb-sub">\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E0A\u0E37\u0E48\u0E2D\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A "'+name+'" \u0E43\u0E19\u0E40\u0E0B\u0E34\u0E23\u0E4C\u0E1F</div></div></div>';
+  if (isNull) return `<div class="result-box rb-amber"><div class="dot d-amber"></div><div><div class="rb-name">เชื่อมต่อไม่ได้</div><div class="rb-sub">ดึงข้อมูลจาก Bot ไม่ได้ในขณะนี้</div></div></div>`;
+  if (match) return `<div class="result-box rb-green"><div class="dot d-green"></div><div><div class="rb-name">อยู่ในประเทศ — ${name}</div><div class="rb-sub">ชื่อในเกม: ${match.name}${match.id ? ' · ID: ' + match.id : ''}</div></div></div>`;
+  return `<div class="result-box rb-red"><div class="dot d-red"></div><div><div class="rb-name">ไม่พบในประเทศ — ${name}</div><div class="rb-sub">ไม่พบชื่อตรงกับ "${name}" ในเซิร์ฟ</div></div></div>`;
 }
 
-async function loadPlayers(force) {
+async function loadPlayers(force = false) {
   if (force) cachedPlayers = null;
-  document.getElementById('playerList').innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>\u0E01\u0E33\u0E25\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14...</div>';
-  renderPlayerList(await fetchPlayers(force), lastHighlights);
+  document.getElementById('playerList').innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>กำลังโหลด...</div>';
+  const players = await fetchPlayers(force);
+  renderPlayerList(players, lastHighlights);
+  return players;
 }
 
 async function checkSingle() {
@@ -294,47 +203,59 @@ async function checkSingle() {
   const area = document.getElementById('singleResult');
   if (!name) { area.innerHTML = ''; return; }
   lastHighlights = [name];
-  area.innerHTML = '<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">\u0E01\u0E33\u0E25\u0E31\u0E07\u0E40\u0E0A\u0E47\u0E04 '+name+'...</div></div>';
+  area.innerHTML = `<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค ${name}...</div></div>`;
   const players = await fetchPlayers();
   renderPlayerList(players, [name]);
-  if (!players) { area.innerHTML = resultBox(name,null,true); return; }
-  const matches = players.filter(p => namesMatch(name,p.name||'') || (p.name||'').toLowerCase().includes(name.toLowerCase()));
-  if (!matches.length) {
-    area.innerHTML = resultBox(name,null,false);
+  if (players === null) { area.innerHTML = resultBox(name, null, true); return; }
+  const matches = players.filter(p => namesMatch(name, p.name || '') || (p.name || '').toLowerCase().includes(name.toLowerCase()));
+  if (matches.length === 0) {
+    area.innerHTML = resultBox(name, null, false);
   } else if (matches.length === 1) {
-    area.innerHTML = resultBox(name,matches[0],false);
+    area.innerHTML = resultBox(name, matches[0], false);
   } else {
-    area.innerHTML = '<div class="result-box rb-green"><div class="dot d-green"></div><div><div class="rb-name">\u0E1E\u0E1A '+matches.length+' \u0E04\u0E19 \u0E17\u0E35\u0E48\u0E21\u0E35\u0E04\u0E33\u0E27\u0E48\u0E32 "'+name+'"</div>'+matches.map(m=>'<div class="rb-sub">\u00B7 '+m.name+(m.id?' \u00B7 ID: '+m.id:'')+'</div>').join('')+'</div></div>';
+    area.innerHTML = `
+      <div class="result-box rb-green">
+        <div class="dot d-green"></div>
+        <div>
+          <div class="rb-name">พบ ${matches.length} คน ที่มีคำว่า "${name}"</div>
+          ${matches.map(m => `<div class="rb-sub">· ${m.name}${m.id ? ' · ID: ' + m.id : ''}</div>`).join('')}
+        </div>
+      </div>`;
   }
 }
 
 async function checkBulk() {
-  const names = document.getElementById('bulkInput').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const names = document.getElementById('bulkInput').value.split('\n').map(s => s.trim()).filter(Boolean);
   const area = document.getElementById('bulkResults');
-  if (!names.length) { area.innerHTML=''; return; }
+  if (!names.length) { area.innerHTML = ''; return; }
   lastHighlights = names;
-  area.innerHTML = '<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">\u0E01\u0E33\u0E25\u0E31\u0E07\u0E40\u0E0A\u0E47\u0E04 '+names.length+' \u0E04\u0E19...</div></div>';
+  area.innerHTML = `<div class="result-box rb-gray"><div class="dot d-gray"></div><div class="rb-name">กำลังเช็ค ${names.length} คน...</div></div>`;
   const players = await fetchPlayers();
   renderPlayerList(players, names);
-  if (!players) { area.innerHTML = names.map(n=>resultBox(n,null,true)).join(''); return; }
-  area.innerHTML = names.map(n=>resultBox(n,players.find(p=>namesMatch(n,p.name||'')),false)).join('');
+  if (players === null) { area.innerHTML = names.map(n => resultBox(n, null, true)).join(''); return; }
+  area.innerHTML = names.map(n => {
+    const match = players.find(p => namesMatch(n, p.name || ''));
+    return resultBox(n, match, false);
+  }).join('');
 }
 
 function clearBulk() {
-  document.getElementById('bulkInput').value='';
-  document.getElementById('bulkResults').innerHTML='';
-  lastHighlights=[];
+  document.getElementById('bulkInput').value = '';
+  document.getElementById('bulkResults').innerHTML = '';
+  lastHighlights = [];
 }
 
 function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',(i===0&&t==='single')||(i===1&&t==='bulk'));
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0 && t === 'single') || (i === 1 && t === 'bulk'));
   });
-  document.getElementById('panel-single').classList.toggle('show',t==='single');
-  document.getElementById('panel-bulk').classList.toggle('show',t==='bulk');
+  document.getElementById('panel-single').classList.toggle('show', t === 'single');
+  document.getElementById('panel-bulk').classList.toggle('show', t === 'bulk');
 }
 
-document.getElementById('nameInput').addEventListener('keydown',e=>{ if(e.key==='Enter') checkSingle(); });
+document.getElementById('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkSingle(); });
+
+loadPlayers();
 </script>
 </body>
 </html>
