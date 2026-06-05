@@ -37,7 +37,8 @@ function namesMatch(discordName, gameName) {
   return words.every((w) => g.includes(w));
 }
 
-function httpGet(url, timeoutMs = 15000) {
+// ── แก้ไข: ลด timeout จาก 15000 → 5000ms ──
+function httpGet(url, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
     const req = lib.get(url, { timeout: timeoutMs }, (res) => {
@@ -61,12 +62,24 @@ function httpGet(url, timeoutMs = 15000) {
 }
 
 async function resolvePlayersUrlFromCfx() {
-  const res = await fetch(`https://cfx.re/join/${FIVEM_JOIN_CODE}`, {
-    redirect: 'manual',
-  });
-  const base = res.headers.get('x-citizenfx-url');
-  if (!base) return null;
-  return base.replace(/\/$/, '') + '/players.json';
+  // ── แก้ไข: ใช้ httpGet แทน fetch (มี timeout ที่ 3 วิ) ──
+  try {
+    const res = await httpGet(`https://cfx.re/join/${FIVEM_JOIN_CODE}`, 3000);
+    // httpGet ไม่ return headers ได้ง่ายๆ ดังนั้นข้ามไปใช้วิธีอื่น
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ── แก้ไข: ใช้ Promise.race + timeout กับทุก URL ──
+async function fetchWithTimeout(url, timeoutMs = 5000) {
+  return Promise.race([
+    httpGet(url, timeoutMs),
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
 }
 
 async function fetchFiveMPlayers(force = false) {
@@ -77,15 +90,11 @@ async function fetchFiveMPlayers(force = false) {
 
   const urls = [];
   if (FIVEM_PLAYERS_URL) urls.push(FIVEM_PLAYERS_URL);
-  try {
-    const fromCfx = await resolvePlayersUrlFromCfx();
-    if (fromCfx) urls.push(fromCfx);
-  } catch (_) {}
   urls.push(FIVEM_FRONTEND_URL);
 
   for (const url of urls) {
     try {
-      const raw = await httpGet(url);
+      const raw = await fetchWithTimeout(url, 5000); // 5 วิ max ต่อ URL
       const json = JSON.parse(raw);
       let list = [];
       if (Array.isArray(json)) list = json;
