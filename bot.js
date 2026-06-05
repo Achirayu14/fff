@@ -23,22 +23,26 @@ const SHEET_NAME = 'ชีต1';
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // ========== ID ห้อง Discord ==========
-const CHANNEL_ID_IN = '1509561704596377690';
-const CHANNEL_ID_OUT = '1509561736850571415';
-const CHANNEL_ID_RESET = '1509971682012430476';
+const CHANNEL_ID_IN      = '1509561704596377690';
+const CHANNEL_ID_OUT     = '1509561736850571415';
+const CHANNEL_ID_RESET   = '1509971682012430476';
 const CHANNEL_ID_ARCHIVE = '1509972377272979518';
+const CHANNEL_ID_FORGOT  = '1511668609271988365';
 
 const START_ROW = 4;
 
-const COL_NAME = 'A';
-const COL_DATE = 'B';
-const COL_IN = 'C';
-const COL_OUT = 'D';
+const COL_NAME  = 'A';
+const COL_DATE  = 'B';
+const COL_IN    = 'C';
+const COL_OUT   = 'D';
 const COL_TOTAL = 'E';
 
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;
+const GOOGLE_PRIVATE_KEY  = process.env.GOOGLE_PRIVATE_KEY;
 
+// ─────────────────────────────────────────────
+// Google Sheets helpers
+// ─────────────────────────────────────────────
 async function getSheetsClient() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -100,6 +104,9 @@ async function getDisplayName(guild, userId) {
   }
 }
 
+// ─────────────────────────────────────────────
+// Monthly reset
+// ─────────────────────────────────────────────
 async function resetMonthlySheet(client) {
   try {
     const sheets = await getSheetsClient();
@@ -121,13 +128,9 @@ async function resetMonthlySheet(client) {
     if (logChannel && rows.length > 0) {
       const summaryMap = {};
       for (const row of rows) {
-        const name = row[1] || '-';
+        const name  = row[1] || '-';
         const total = row[4] || '0 วินาที';
-        if (!summaryMap[name]) {
-          summaryMap[name] = parseDurationThai(total);
-        } else {
-          summaryMap[name] += parseDurationThai(total);
-        }
+        summaryMap[name] = (summaryMap[name] || 0) + parseDurationThai(total);
       }
 
       const lines = Object.entries(summaryMap)
@@ -142,10 +145,10 @@ async function resetMonthlySheet(client) {
         .setTimestamp();
 
       const csvHeader = 'วันที่,ชื่อ-นามสกุล,เวลาเข้า,เวลาออก,รวมเวลา';
-      const csvRows = rows.map((r) => (r || []).join(','));
+      const csvRows   = rows.map((r) => (r || []).join(','));
       const csvContent = [csvHeader, ...csvRows].join('\n');
-      const csvBuffer = Buffer.from('\ufeff' + csvContent, 'utf8');
-      const csvAttach = new AttachmentBuilder(csvBuffer, { name: `shift_${monthYear}.csv` });
+      const csvBuffer  = Buffer.from('\ufeff' + csvContent, 'utf8');
+      const csvAttach  = new AttachmentBuilder(csvBuffer, { name: `shift_${monthYear}.csv` });
       await logChannel.send({ embeds: [embed], files: [csvAttach] });
       console.log('📤 ส่งข้อมูลก่อนรีเซ็ตสำเร็จ');
     }
@@ -166,32 +169,37 @@ async function resetMonthlySheet(client) {
   }
 }
 
+// เช็คทุก 1 นาที เพื่อไม่พลาดช่วง 00:00 วันที่ 1
 function scheduleMonthlyReset(client) {
   let lastResetMonth = -1;
   setInterval(async () => {
-    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    const day = now.getDate();
-    const month = now.getMonth();
-    const hour = now.getHours();
-    if (day === 1 && hour === 0 && month !== lastResetMonth) {
+    const now    = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const day    = now.getDate();
+    const month  = now.getMonth();
+    const hour   = now.getHours();
+    const minute = now.getMinutes();
+    if (day === 1 && hour === 0 && minute < 5 && month !== lastResetMonth) {
       lastResetMonth = month;
       await resetMonthlySheet(client);
     }
-  }, 60 * 60 * 1000);
-  console.log('📅 ตั้งค่ารีเซ็ตรายเดือนสำเร็จ (เช็คทุก 1 ชม.)');
+  }, 60 * 1000);
+  console.log('📅 ตั้งค่ารีเซ็ตรายเดือนสำเร็จ (เช็คทุก 1 นาที)');
 }
 
+// ─────────────────────────────────────────────
+// Write shift to Google Sheets
+// ─────────────────────────────────────────────
 async function writeShiftToSheet(userId, username, startTime, endTime, guild) {
   try {
-    const sheets = await getSheetsClient();
+    const sheets  = await getSheetsClient();
     const elapsed = Math.floor((endTime - startTime) / 1000);
     let displayName = username;
     if (guild) {
       const memberName = await getDisplayName(guild, userId);
       if (memberName) displayName = memberName;
     }
-    const dateStr = formatDate(startTime);
-    const timeInStr = formatTime(startTime);
+    const dateStr    = formatDate(startTime);
+    const timeInStr  = formatTime(startTime);
     const timeOutStr = formatTime(endTime);
 
     const existing = await sheets.spreadsheets.values.get({
@@ -204,13 +212,11 @@ async function writeShiftToSheet(userId, username, startTime, endTime, guild) {
       const rowName = (row[1] || '').trim().toLowerCase();
       return rowDate === dateStr.trim() && rowName === displayName.trim().toLowerCase();
     });
-    
+
     let totalSeconds = elapsed;
     if (rowIndex !== -1) {
       const existingTotal = rows[rowIndex][4];
-      if (existingTotal) {
-        totalSeconds = parseDurationThai(existingTotal) + elapsed;
-      }
+      if (existingTotal) totalSeconds = parseDurationThai(existingTotal) + elapsed;
     }
     const totalTime = formatDurationThai(totalSeconds);
     console.log(`📝 บันทึก: ${displayName} | ${dateStr} | เข้า ${timeInStr} | ออก ${timeOutStr} | รวม ${totalTime}`);
@@ -240,6 +246,9 @@ async function writeShiftToSheet(userId, username, startTime, endTime, guild) {
   }
 }
 
+// ─────────────────────────────────────────────
+// Discord Client
+// ─────────────────────────────────────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -249,10 +258,13 @@ const client = new Client({
   ],
 });
 
-const activeShifts = new Map();
-const pendingPhoto = new Map();
-const pendingIdCheck = new Map(); // เก็บ userId ที่รอกรอก ID ในเกม
+const activeShifts   = new Map(); // userId → shift data
+const pendingPhoto   = new Map(); // userId → pending photo data
+const pendingIdCheck = new Map(); // userId → pending ID check data
 
+// ─────────────────────────────────────────────
+// Utility helpers
+// ─────────────────────────────────────────────
 async function getChannelById(channelId) {
   return client.channels.fetch(channelId).catch((err) => {
     console.error(`❌ ไม่สามารถดึงห้อง ID ${channelId}:`, err.message);
@@ -268,18 +280,13 @@ function discordFullTime(date) {
   return `<t:${Math.floor(date.getTime() / 1000)}:F>`;
 }
 
-async function replyThenDelete(interaction, options, seconds = 10) {
-  await interaction.reply({ ...options, ephemeral: true });
-  setTimeout(() => interaction.deleteReply().catch(() => {}), seconds * 1000);
-}
-
 function downloadImage(url) {
   return new Promise((resolve, reject) => {
     https
       .get(url, (res) => {
         const chunks = [];
         res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => resolve(Buffer.concat(chunks)));
+        res.on('end',  () => resolve(Buffer.concat(chunks)));
         res.on('error', reject);
       })
       .on('error', reject);
@@ -297,7 +304,7 @@ async function unlockUserInChannel(channelId, guild, userId) {
     const channel = await guild.channels.fetch(channelId);
     await channel.permissionOverwrites.edit(userId, {
       SendMessages: true,
-      AttachFiles: true,
+      AttachFiles:  true,
     });
   } catch (err) {
     console.error('❌ ปลดล็อก user ล้มเหลว:', err.message);
@@ -313,81 +320,131 @@ async function lockUserInChannel(channelId, guild, userId) {
   }
 }
 
-client.on('error', (err) => console.error('❌ Discord Client Error:', err.message));
-client.on('shardError', (err) => console.error('❌ WebSocket Error:', err.message));
+// ─────────────────────────────────────────────
+// Error handlers
+// ─────────────────────────────────────────────
+client.on('error',      (err) => console.error('❌ Discord Client Error:', err.message));
+client.on('shardError', (err) => console.error('❌ WebSocket Error:',      err.message));
 process.on('unhandledRejection', (err) => console.error('❌ Unhandled Rejection:', err?.message || err));
-process.on('uncaughtException', (err) => console.error('❌ Uncaught Exception:', err?.message || err));
+process.on('uncaughtException',  (err) => console.error('❌ Uncaught Exception:',  err?.message || err));
 
+// ─────────────────────────────────────────────
+// Ready
+// ─────────────────────────────────────────────
 client.once('ready', () => {
   console.log(`✅ Bot พร้อมใช้งาน: ${client.user.tag}`);
   console.log(`📋 กำลังทำงานใน ${client.guilds.cache.size} เซิร์ฟเวอร์`);
   scheduleMonthlyReset(client);
 
-  // ===== เช็คลืมออกเวร (แจ้งเตือนทุก 1 ชั่วโมง ไม่ยกเลิกเวร) =====
-  const CHANNEL_ID_FORGOT = '1511668609271988365';
-  const MAX_SHIFT_MS = 60 * 60 * 1000; // 1 ชั่วโมง
+  // ── แจ้งเตือนลืมออกเวร ──────────────────────
+  // เช็คทุก 5 นาที แจ้งเฉพาะคนที่ "ออกจากเกมแล้ว" แต่ยังไม่กดออกเวร
+  // cooldown 1 ชม./คน เพื่อไม่ spam
+  const WARN_COOLDOWN_MS = 60 * 60 * 1000;
 
   setInterval(async () => {
     if (activeShifts.size === 0) return;
     const now = Date.now();
 
+    // ดึง FiveM players ครั้งเดียวต่อรอบ
+    const players = await fetchFiveMPlayers();
+
+    // ถ้าดึงเซิร์ฟเวอร์ไม่ได้ (null) → ข้ามรอบนี้ทั้งหมด ไม่แจ้งผิดพลาด
+    if (players === null) {
+      console.log('⚠️ [ForgotCheck] ดึง FiveM ไม่ได้ — ข้ามรอบนี้');
+      return;
+    }
+
     for (const [userId, shift] of activeShifts.entries()) {
       if (pendingPhoto.has(userId)) continue;
-
-      const elapsed = now - shift.startTime.getTime();
-      if (elapsed < MAX_SHIFT_MS) continue;
-
-      // ป้องกันแจ้งซ้ำ — เตือนซ้ำทุก 1 ชม. เท่านั้น
-      const lastWarnTime = shift._lastWarnTime || 0;
-      if (now - lastWarnTime < MAX_SHIFT_MS) continue;
-
-      // บันทึกเวลาที่เตือนล่าสุด (ไม่ลบ shift ออก)
-      shift._lastWarnTime = now;
 
       const guild = client.guilds.cache.get(shift.guildId);
       let displayName = 'Unknown';
       if (guild) {
         try {
           const member = await guild.members.fetch(userId);
-          displayName = member.nickname || member.displayName || member.user.username;
+          displayName  = member.nickname || member.displayName || member.user.username;
         } catch (_) {}
       }
 
-      // แจ้งเตือนเฉยๆ ไม่ลบ log ไม่ยกเลิกเวร
+      // ยังอยู่ในเกม → reset cooldown แล้วข้าม (ไม่แจ้ง)
+      const stillInGame = players.some((p) => namesMatch(displayName, p.name));
+      if (stillInGame) {
+        shift._lastWarnTime = 0;
+        continue;
+      }
+
+      // ออกจากเกมแล้ว แต่ยังไม่กดออกเวร → เช็ค cooldown
+      const lastWarnTime = shift._lastWarnTime || 0;
+      if (now - lastWarnTime < WARN_COOLDOWN_MS) continue;
+
+      shift._lastWarnTime = now;
+
+      const elapsed      = Math.floor((now - shift.startTime.getTime()) / 1000);
       const forgotChannel = await getChannelById(CHANNEL_ID_FORGOT);
       if (forgotChannel) {
-        const elapsedSec = Math.floor(elapsed / 1000);
         const embed = new EmbedBuilder()
-          .setTitle('⚠️ เตือน: ยังไม่ได้กดออกเวร!')
-          .setDescription(`<@${userId}> ยังไม่ได้กดออกเวร — **เวรยังคงดำเนินอยู่**`)
+          .setTitle('⚠️ เตือน: ออกจากเกมแล้วแต่ยังไม่กดออกเวร!')
+          .setDescription(`<@${userId}> ออกจากเกมแล้ว แต่**ยังไม่ได้กดออกเวร**`)
           .addFields(
-            { name: '👤 พนักงาน', value: displayName, inline: true },
-            { name: '🕐 เข้าเวรตั้งแต่', value: discordFullTime(shift.startTime), inline: true },
-            { name: '⏱️ ทำงานมาแล้ว', value: formatDurationThai(elapsedSec), inline: false },
-            { name: '📌 หมายเหตุ', value: 'กรุณากดปุ่ม **ออกเวร** เพื่อบันทึกเวลาให้ถูกต้อง', inline: false },
+            { name: '👤 พนักงาน',      value: displayName,                      inline: true  },
+            { name: '🕐 เข้าเวรตั้งแต่', value: discordFullTime(shift.startTime), inline: true  },
+            { name: '⏱️ ทำงานมาแล้ว',   value: formatDurationThai(elapsed),      inline: false },
+            { name: '📌 หมายเหตุ',       value: 'กรุณากดปุ่ม **ออกเวร** เพื่อบันทึกเวลาให้ถูกต้อง', inline: false },
           )
           .setColor(0xffa500)
           .setTimestamp();
         await forgotChannel.send({ content: `<@${userId}>`, embeds: [embed] });
       }
-
-      console.log(`⚠️ เตือนลืมออกเวร (ยังไม่ยกเลิก): ${displayName}`);
+      console.log(`⚠️ เตือนลืมออกเวร (ออกจากเกมแล้ว): ${displayName}`);
     }
-  }, 60 * 1000); // เช็คทุก 1 นาที
+  }, 5 * 60 * 1000); // ทุก 5 นาที
 
-  console.log('👁️ เช็คลืมออกเวรทุก 1 นาที (แจ้งเตือนทุก 1 ชม. ไม่ยกเลิกเวร)');
+  console.log('👁️ เช็คลืมออกเวรทุก 5 นาที (แจ้งเฉพาะคนที่ออกจากเกมแล้วแต่ยังไม่กดออกเวร)');
 });
 
+// ─────────────────────────────────────────────
+// messageCreate
+// ─────────────────────────────────────────────
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
+  // ── pendingIdCheck: รับ ID จากผู้ใช้ใน CHANNEL_ID_IN เท่านั้น ──
+  if (pendingIdCheck.has(message.author.id)) {
+    if (message.channel.id !== CHANNEL_ID_IN) return; // ไม่ intercept ห้องอื่น
+
+    const idInput = message.content.trim();
+    if (/^\d+$/.test(idInput)) {
+      const pending = pendingIdCheck.get(message.author.id);
+      const player  = await getPlayerById(idInput);
+      if (!player) {
+        await message.reply(`❌ ไม่พบ ID **${idInput}** ในเกมขณะนี้\nกรุณาตรวจสอบ ID อีกครั้ง หรือเข้าเกมแล้วลองใหม่`);
+        return;
+      }
+      const gameMatch = namesMatch(pending.displayName, player.name);
+      if (!gameMatch) {
+        pendingIdCheck.delete(message.author.id);
+        await message.reply([
+          `⚠️ **พบ ID ${idInput} ในเกมแล้ว** แต่ชื่อไม่ตรงกัน`,
+          `ชื่อในเกม: **${player.name}**`,
+          `ชื่อ Discord: **${pending.displayName}**`,
+          '',
+          '📌 กรุณาเปลี่ยน **Nickname** ใน Discord Server ให้ตรงกับชื่อในเกม แล้วกด **เข้าเวร** ใหม่อีกครั้ง',
+        ].join('\n'));
+        return;
+      }
+      pendingIdCheck.delete(message.author.id);
+      await message.reply('✅ ยืนยันตัวตนสำเร็จ กรุณากด **เข้าเวร** อีกครั้งได้เลยครับ');
+      return;
+    }
+    // ถ้าพิมพ์ไม่ใช่ตัวเลขใน CHANNEL_ID_IN → ปล่อยผ่านไปเช็คต่อด้านล่าง
+  }
+
+  // ── CHANNEL_ID_IN: ลบข้อความคนที่ยังไม่เข้าเวร ──
   if (message.channel.id === CHANNEL_ID_IN) {
     const isOnShift = activeShifts.has(message.author.id);
     const isPending = pendingPhoto.has(message.author.id);
     if (!isOnShift && !isPending) {
-      try {
-        await message.delete();
-      } catch (_) {}
+      try { await message.delete(); } catch (_) {}
       try {
         const w = await message.channel.send(
           `<@${message.author.id}> ❌ กรุณากดปุ่ม **เข้าเวร** ก่อนส่งข้อความในช่องนี้ครับ`,
@@ -398,6 +455,7 @@ client.on('messageCreate', async (message) => {
     }
   }
 
+  // ── รับรูปภาพจาก pendingPhoto ──
   if (pendingPhoto.has(message.author.id)) {
     const photo = message.attachments.first();
     if (!photo) return;
@@ -405,26 +463,21 @@ client.on('messageCreate', async (message) => {
     const pending = pendingPhoto.get(message.author.id);
     pendingPhoto.delete(message.author.id);
 
-    const guild = message.guild;
-    const logInChannel = await getChannelById(CHANNEL_ID_IN);
-    const logOutChannel = await getChannelById(CHANNEL_ID_OUT);
+    const guild          = message.guild;
+    const logInChannel   = await getChannelById(CHANNEL_ID_IN);
+    const logOutChannel  = await getChannelById(CHANNEL_ID_OUT);
     const archiveChannel = await getChannelById(CHANNEL_ID_ARCHIVE);
 
     let imgBuffer;
-    try {
-      imgBuffer = await downloadImage(photo.url);
-    } catch (_) {
-      imgBuffer = null;
-    }
-    try {
-      await message.delete();
-    } catch (_) {}
+    try { imgBuffer = await downloadImage(photo.url); } catch (_) { imgBuffer = null; }
+    try { await message.delete(); } catch (_) {}
 
-    const ext = photo.name?.split('.').pop() || 'jpg';
+    const ext      = photo.name?.split('.').pop() || 'jpg';
     const filename = `BAD_PD.${ext}`;
 
+    // ── เข้าเวร ──
     if (pending.type === 'in') {
-      let logMessageId = null;
+      let logMessageId     = null;
       let archiveMessageId = null;
 
       if (logInChannel) {
@@ -432,9 +485,9 @@ client.on('messageCreate', async (message) => {
           .setTitle('🟢 เข้าเวร — กำลังทำงาน')
           .setDescription(`<@${message.author.id}> ได้เข้าเวรแล้ว`)
           .addFields(
-            { name: '👤 พนักงาน', value: message.author.username, inline: true },
-            { name: '🕐 เวลาเข้าเวร', value: discordFullTime(pending.startTime), inline: true },
-            { name: '⏱️ ทำงานมาแล้ว', value: discordRelativeTime(pending.startTime), inline: false },
+            { name: '👤 พนักงาน',      value: message.author.username,          inline: true  },
+            { name: '🕐 เวลาเข้าเวร',   value: discordFullTime(pending.startTime), inline: true  },
+            { name: '⏱️ ทำงานมาแล้ว',   value: discordRelativeTime(pending.startTime), inline: false },
           )
           .setColor(0x57f287)
           .setFooter({ text: 'รอออกเวร...' })
@@ -455,8 +508,8 @@ client.on('messageCreate', async (message) => {
           .setTitle('🟢 เข้าเวร — กำลังทำงาน')
           .setDescription(`<@${message.author.id}>`)
           .addFields(
-            { name: '👤 พนักงาน', value: message.author.username, inline: true },
-            { name: '🕐 เวลาเข้าเวร', value: discordFullTime(pending.startTime), inline: true },
+            { name: '👤 พนักงาน',    value: message.author.username,              inline: true  },
+            { name: '🕐 เวลาเข้าเวร', value: discordFullTime(pending.startTime),   inline: true  },
             { name: '⏱️ ทำงานมาแล้ว', value: discordRelativeTime(pending.startTime), inline: false },
           )
           .setColor(0x57f287)
@@ -477,16 +530,19 @@ client.on('messageCreate', async (message) => {
         startTime: pending.startTime,
         logMessageId,
         archiveMessageId,
-        photoBuffer: imgBuffer,
+        photoBuffer:  imgBuffer,
         photoFilename: filename,
         guildId: guild?.id,
-        userId: message.author.id,
+        userId:  message.author.id,
       });
 
       if (guild) await lockUserInChannel(CHANNEL_ID_IN, guild, message.author.id);
+
+    // ── ออกเวร ──
     } else if (pending.type === 'out') {
       const elapsed = Math.floor((pending.endTime - pending.startTime) / 1000);
 
+      // อัปเดต embed ในห้องเข้าเวร
       if (logInChannel && pending.logMessageId) {
         try {
           const logMsg = await logInChannel.messages.fetch(pending.logMessageId);
@@ -494,9 +550,9 @@ client.on('messageCreate', async (message) => {
             .setTitle('🟡 ออกเวรแล้ว')
             .setDescription(`<@${pending.userId || message.author.id}>`)
             .addFields(
-              { name: '👤 พนักงาน', value: message.author.username, inline: true },
-              { name: '🕐 เวลาเข้าเวร', value: discordFullTime(pending.startTime), inline: true },
-              { name: '⏱️ ทำงานมาแล้ว', value: '✅ ออกเวรไปแล้ว', inline: false },
+              { name: '👤 พนักงาน',    value: message.author.username,            inline: true  },
+              { name: '🕐 เวลาเข้าเวร', value: discordFullTime(pending.startTime), inline: true  },
+              { name: '⏱️ ทำงานมาแล้ว', value: '✅ ออกเวรไปแล้ว',                 inline: false },
             )
             .setColor(0xfee75c)
             .setFooter({ text: '✅ เสร็จสิ้นกะการทำงาน' })
@@ -523,15 +579,16 @@ client.on('messageCreate', async (message) => {
 
       if (shiftGuild) await lockUserInChannel(CHANNEL_ID_IN, shiftGuild, pending.userId || message.author.id);
 
+      // ส่ง embed ห้องออกเวร
       if (logOutChannel) {
         const embed = new EmbedBuilder()
           .setTitle('🔴 ออกเวรแล้ว')
           .setDescription(`<@${message.author.id}> สิ้นสุดกะการทำงาน`)
           .addFields(
-            { name: '👤 พนักงาน', value: message.author.username, inline: true },
-            { name: '🕐 เวลาเข้าเวร', value: discordFullTime(pending.startTime), inline: true },
-            { name: '🕔 เวลาออกเวร', value: discordFullTime(pending.endTime), inline: true },
-            { name: '⏱️ รวมเวลาทำงาน', value: formatDurationThai(elapsed), inline: false },
+            { name: '👤 พนักงาน',       value: message.author.username,            inline: true  },
+            { name: '🕐 เวลาเข้าเวร',    value: discordFullTime(pending.startTime), inline: true  },
+            { name: '🕔 เวลาออกเวร',     value: discordFullTime(pending.endTime),   inline: true  },
+            { name: '⏱️ รวมเวลาทำงาน',   value: formatDurationThai(elapsed),        inline: false },
           )
           .setColor(0xed4245)
           .setFooter({ text: '✅ เสร็จสิ้นกะการทำงาน' })
@@ -545,18 +602,19 @@ client.on('messageCreate', async (message) => {
         }
       }
 
+      // อัปเดต archive
       if (archiveChannel && pending.archiveMessageId) {
         try {
-          const archMsg = await archiveChannel.messages.fetch(pending.archiveMessageId);
+          const archMsg  = await archiveChannel.messages.fetch(pending.archiveMessageId);
           const elapsed2 = Math.floor((pending.endTime - pending.startTime) / 1000);
           const updatedEmbed = new EmbedBuilder()
             .setTitle('เสร็จสิ้นกะการทำงาน')
             .setDescription(`<@${message.author.id}>`)
             .addFields(
-              { name: 'พนักงาน', value: message.author.username, inline: true },
-              { name: 'เวลาเข้าเวร', value: discordFullTime(pending.startTime), inline: true },
-              { name: 'เวลาออกเวร', value: discordFullTime(pending.endTime), inline: true },
-              { name: 'รวมเวลาทำงาน', value: formatDurationThai(elapsed2), inline: false },
+              { name: 'พนักงาน',       value: message.author.username,            inline: true  },
+              { name: 'เวลาเข้าเวร',    value: discordFullTime(pending.startTime), inline: true  },
+              { name: 'เวลาออกเวร',     value: discordFullTime(pending.endTime),   inline: true  },
+              { name: 'รวมเวลาทำงาน',   value: formatDurationThai(elapsed2),       inline: false },
             )
             .setColor(0xfee75c)
             .setTimestamp();
@@ -567,36 +625,9 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  // ===== รับ ID ในเกม (กรณีชื่อไม่ตรง) =====
-  if (pendingIdCheck.has(message.author.id)) {
-    const idInput = message.content.trim();
-    if (/^\d+$/.test(idInput)) {
-      const pending = pendingIdCheck.get(message.author.id);
-      const player = await getPlayerById(idInput);
-      if (!player) {
-        await message.reply(`❌ ไม่พบ ID **${idInput}** ในเกมขณะนี้\nกรุณาตรวจสอบ ID อีกครั้ง หรือเข้าเกมแล้วลองใหม่`);
-        return;
-      }
-      // เจอ ID แต่ชื่อไม่ตรง → แจ้งให้เปลี่ยนชื่อ
-      const gameMatch = namesMatch(pending.displayName, player.name);
-      if (!gameMatch) {
-        pendingIdCheck.delete(message.author.id);
-        await message.reply([
-          `⚠️ **พบ ID ${idInput} ในเกมแล้ว** แต่ชื่อไม่ตรงกัน`,
-          `ชื่อในเกม: **${player.name}**`,
-          `ชื่อ Discord: **${pending.displayName}**`,
-          '',
-          '📌 กรุณาเปลี่ยน **Nickname** ใน Discord Server ให้ตรงกับชื่อในเกม แล้วกด **เข้าเวร** ใหม่อีกครั้ง',
-        ].join('\n'));
-        return;
-      }
-      // ชื่อตรง → ผ่าน ดำเนินการเข้าเวรต่อ (ไม่ต้องทำอะไร แค่ลบออกจาก pendingIdCheck)
-      pendingIdCheck.delete(message.author.id);
-      await message.reply('✅ ยืนยันตัวตนสำเร็จ กรุณากด **เข้าเวร** อีกครั้งได้เลยครับ');
-      return;
-    }
-  }
-
+  // ─────────────────────────────────────────────
+  // คำสั่ง !
+  // ─────────────────────────────────────────────
   if (message.content.toLowerCase() === '!shift') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('clock_in').setLabel('🟢 เข้าเวร').setStyle(ButtonStyle.Success),
@@ -611,9 +642,9 @@ client.on('messageCreate', async (message) => {
 
     const files = [];
     try {
-      const badPdPath = path.join(__dirname, 'BAD_PD.jpg');
+      const badPdPath   = path.join(__dirname, 'BAD_PD.jpg');
       const badPdBuffer = fs.readFileSync(badPdPath);
-      const attachment = new AttachmentBuilder(badPdBuffer, { name: 'BAD_PD.jpg' });
+      const attachment  = new AttachmentBuilder(badPdBuffer, { name: 'BAD_PD.jpg' });
       embed.setImage('attachment://BAD_PD.jpg');
       files.push(attachment);
     } catch (err) {
@@ -665,40 +696,55 @@ client.on('messageCreate', async (message) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// interactionCreate
+// ─────────────────────────────────────────────
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
   const { customId, user } = interaction;
 
+  // ══════════════════════════════════════════════
+  // 🟢 CLOCK IN
+  // ══════════════════════════════════════════════
   if (customId === 'clock_in') {
+    // clear pendingIdCheck ค้างก่อนเสมอ
+    pendingIdCheck.delete(user.id);
+
+    // ✅ deferReply ก่อนทันที ป้องกัน interaction timeout (3 วิ)
+    await interaction.deferReply({ ephemeral: true });
+
+    // เช็คเข้าเวรซ้ำ
     if (activeShifts.has(user.id)) {
       const data = activeShifts.get(user.id);
-      return replyThenDelete(
-        interaction,
-        {
-          content: [
-            '⚠️ **คุณเข้าเวรอยู่แล้ว!**',
-            `🕐 เข้าเวรตั้งแต่: ${discordFullTime(data.startTime)}`,
-            `⏱️ เริ่มมาแล้ว: ${discordRelativeTime(data.startTime)}`,
-          ].join('\n'),
-        },
-        10,
-      );
-    }
-    if (pendingPhoto.has(user.id)) {
-      return replyThenDelete(interaction, { content: '⏳ รอคุณส่งรูปเข้าเวรอยู่นะครับ กรุณาส่งรูปในช่องนี้' }, 10);
+      await interaction.editReply({
+        content: [
+          '⚠️ **คุณเข้าเวรอยู่แล้ว!**',
+          `🕐 เข้าเวรตั้งแต่: ${discordFullTime(data.startTime)}`,
+          `⏱️ เริ่มมาแล้ว: ${discordRelativeTime(data.startTime)}`,
+        ].join('\n'),
+      });
+      setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+      return;
     }
 
-    const memberForCheck = await interaction.guild.members.fetch(user.id);
+    // รอรูปอยู่
+    if (pendingPhoto.has(user.id)) {
+      await interaction.editReply({ content: '⏳ รอคุณส่งรูปเข้าเวรอยู่นะครับ กรุณาส่งรูปในช่องนี้' });
+      setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+      return;
+    }
+
+    // เช็ค FiveM
+    const memberForCheck      = await interaction.guild.members.fetch(user.id);
     const displayNameForCheck = memberForCheck.nickname || memberForCheck.displayName || user.username;
-    const inGame = await isPlayerInFiveM(displayNameForCheck);
+    const inGame              = await isPlayerInFiveM(displayNameForCheck);
+
     if (!inGame) {
       const players = await fetchFiveMPlayers();
-      if (players === null) {
-        // ดึงไม่ได้เลย อนุญาตผ่านชั่วคราว
-      } else {
-        // ชื่อไม่ตรง → ให้กรอก ID
+      if (players !== null) {
+        // เซิร์ฟเวอร์ online แต่ไม่เจอชื่อ → ขอ ID
         pendingIdCheck.set(user.id, { displayName: displayNameForCheck, startTime: new Date() });
-        await interaction.reply({
+        await interaction.editReply({
           content: [
             '❌ **ไม่พบชื่อของคุณในเกม**',
             `ชื่อ Discord: **${displayNameForCheck}**`,
@@ -707,67 +753,87 @@ client.on('interactionCreate', async (interaction) => {
             '',
             '⚠️ ถ้าชื่อในเกมไม่ตรงกับ Discord กรุณาเปลี่ยนชื่อ Discord ให้ตรงแล้วลองใหม่',
           ].join('\n'),
-          ephemeral: true,
         });
         setTimeout(() => interaction.deleteReply().catch(() => {}), 15000);
         return;
       }
+      // players === null → ดึงเซิร์ฟเวอร์ไม่ได้ → อนุญาตผ่านชั่วคราว
     }
 
+    // ✅ ผ่านทุกเงื่อนไข → ขอรูป
     const startTime = new Date();
     pendingPhoto.set(user.id, { type: 'in', startTime });
     if (interaction.guild) await unlockUserInChannel(CHANNEL_ID_IN, interaction.guild, user.id);
-    return replyThenDelete(
-      interaction,
-      {
-        content: ['💥 **กรุณาส่งรูปเพื่อยืนยันการเข้าเวร**', '❗ ส่งรูปในช่องเข้าเวรได้เลยครับ'].join('\n'),
-      },
-      30,
-    );
+
+    await interaction.editReply({
+      content: ['💥 **กรุณาส่งรูปเพื่อยืนยันการเข้าเวร**', '❗ ส่งรูปในช่องเข้าเวรได้เลยครับ'].join('\n'),
+    });
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 30000);
+    return;
   }
 
+  // ══════════════════════════════════════════════
+  // 🔴 CLOCK OUT
+  // ══════════════════════════════════════════════
   if (customId === 'clock_out') {
+    // clear pendingIdCheck ค้างก่อนเสมอ
+    pendingIdCheck.delete(user.id);
+
+    // ✅ deferReply ก่อนทันที
+    await interaction.deferReply({ ephemeral: true });
+
     if (!activeShifts.has(user.id)) {
-      return replyThenDelete(interaction, { content: '⚠️ คุณยังไม่ได้เข้าเวร กรุณากด **เข้าเวร** ก่อน' }, 10);
+      await interaction.editReply({ content: '⚠️ คุณยังไม่ได้เข้าเวร กรุณากด **เข้าเวร** ก่อน' });
+      setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+      return;
     }
+
     if (pendingPhoto.has(user.id)) {
-      return replyThenDelete(interaction, { content: '⏳ รอคุณส่งรูปออกเวรอยู่นะครับ กรุณาส่งรูปในช่องนี้' }, 10);
+      await interaction.editReply({ content: '⏳ รอคุณส่งรูปออกเวรอยู่นะครับ กรุณาส่งรูปในช่องนี้' });
+      setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+      return;
     }
-    const data = activeShifts.get(user.id);
+
+    const data    = activeShifts.get(user.id);
     const endTime = new Date();
     activeShifts.delete(user.id);
     pendingPhoto.set(user.id, {
-      type: 'out',
-      startTime: data.startTime,
+      type:             'out',
+      startTime:        data.startTime,
       endTime,
-      logMessageId: data.logMessageId,
+      logMessageId:     data.logMessageId,
       archiveMessageId: data.archiveMessageId,
-      guildId: data.guildId,
-      userId: data.userId,
+      guildId:          data.guildId,
+      userId:           data.userId,
     });
+
     if (interaction.guild) await unlockUserInChannel(CHANNEL_ID_IN, interaction.guild, user.id);
-    return replyThenDelete(
-      interaction,
-      {
-        content: ['💥 **กรุณาส่งรูปเพื่อยืนยันการออกเวร**', '❗ ส่งรูปในช่องนี้ได้เลยครับ'].join('\n'),
-      },
-      30,
-    );
+
+    await interaction.editReply({
+      content: ['💥 **กรุณาส่งรูปเพื่อยืนยันการออกเวร**', '❗ ส่งรูปในช่องนี้ได้เลยครับ'].join('\n'),
+    });
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 30000);
+    return;
   }
 
+  // ══════════════════════════════════════════════
+  // 📊 CHECK STATUS
+  // ══════════════════════════════════════════════
   if (customId === 'check_status') {
     if (!activeShifts.has(user.id)) {
-      return replyThenDelete(interaction, { content: '❌ คุณยังไม่ได้เข้าเวรในขณะนี้' }, 10);
+      await interaction.reply({ content: '❌ คุณยังไม่ได้เข้าเวรในขณะนี้', ephemeral: true });
+      setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+      return;
     }
-    const data = activeShifts.get(user.id);
+    const data    = activeShifts.get(user.id);
     const elapsed = Math.floor((Date.now() - data.startTime) / 1000);
-    const embed = new EmbedBuilder()
+    const embed   = new EmbedBuilder()
       .setTitle('🟢 กำลังเข้าเวรอยู่')
       .setDescription(`👤 **${user.username}**\n<@${user.id}>`)
       .addFields(
-        { name: '🕐 เวลาเข้าเวร', value: discordFullTime(data.startTime), inline: false },
-        { name: '⏱️ รวมเวลาทำงาน', value: formatDurationThai(elapsed), inline: false },
-        { name: '📊 สถานะ', value: '`กำลังทำงาน`', inline: false },
+        { name: '🕐 เวลาเข้าเวร',  value: discordFullTime(data.startTime), inline: false },
+        { name: '⏱️ รวมเวลาทำงาน', value: formatDurationThai(elapsed),      inline: false },
+        { name: '📊 สถานะ',         value: '`กำลังทำงาน`',                   inline: false },
       )
       .setColor(0x57f287)
       .setFooter({ text: 'Shift Management System' })
@@ -779,7 +845,7 @@ client.on('interactionCreate', async (interaction) => {
       if (!fs.existsSync(badPdPath)) badPdPath = path.resolve(process.cwd(), 'BAD_PD.jpg');
       if (fs.existsSync(badPdPath)) {
         const badPdBuffer = fs.readFileSync(badPdPath);
-        const attachment = new AttachmentBuilder(badPdBuffer, { name: 'BAD_PD.jpg' });
+        const attachment  = new AttachmentBuilder(badPdBuffer, { name: 'BAD_PD.jpg' });
         embed.setImage('attachment://BAD_PD.jpg');
         files.push(attachment);
       }
@@ -792,21 +858,30 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
+  // ══════════════════════════════════════════════
+  // 🗑️ CLEAR CHANNELS (admin only)
+  // ══════════════════════════════════════════════
   if (['clear_in', 'clear_out', 'clear_archive', 'clear_reset'].includes(customId)) {
     if (!interaction.member.permissions.has('Administrator')) {
-      return replyThenDelete(interaction, { content: '❌ คำสั่งนี้ใช้ได้เฉพาะแอดมินเท่านั้น' }, 5);
+      await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะแอดมินเท่านั้น', ephemeral: true });
+      setTimeout(() => interaction.deleteReply().catch(() => {}), 5000);
+      return;
     }
     const channelMap = {
-      clear_in: CHANNEL_ID_IN,
-      clear_out: CHANNEL_ID_OUT,
+      clear_in:      CHANNEL_ID_IN,
+      clear_out:     CHANNEL_ID_OUT,
       clear_archive: CHANNEL_ID_ARCHIVE,
-      clear_reset: CHANNEL_ID_RESET,
+      clear_reset:   CHANNEL_ID_RESET,
     };
     const targetChannel = await getChannelById(channelMap[customId]);
     if (!targetChannel) {
-      return replyThenDelete(interaction, { content: '❌ ไม่พบห้องที่ต้องการ' }, 5);
+      await interaction.reply({ content: '❌ ไม่พบห้องที่ต้องการ', ephemeral: true });
+      setTimeout(() => interaction.deleteReply().catch(() => {}), 5000);
+      return;
     }
-    await replyThenDelete(interaction, { content: `⏳ กำลังลบข้อความในห้อง <#${targetChannel.id}>...` }, 5);
+
+    await interaction.reply({ content: `⏳ กำลังลบข้อความในห้อง <#${targetChannel.id}>...`, ephemeral: true });
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 5000);
 
     let deleted;
     do {
@@ -825,12 +900,16 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// HTTP keep-alive + /players endpoint
+// ─────────────────────────────────────────────
 http
   .createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Origin',  '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
     const url = new URL(req.url, `http://localhost`);
     if (url.pathname === '/players') {
       try {
