@@ -736,13 +736,29 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    // เช็ค FiveM
-    const memberForCheck      = await interaction.guild.members.fetch(user.id);
+    // ── แก้ไข: ใช้ interaction.member แทน fetch ใหม่ ──
+    const memberForCheck = interaction.member;
     const displayNameForCheck = memberForCheck.nickname || memberForCheck.displayName || user.username;
-    const inGame              = await isPlayerInFiveM(displayNameForCheck);
+
+    // ── แก้ไข: ใช้ Promise.race กับ timeout ป้องกัน FiveM ค้าง ──
+    const inGame = await Promise.race([
+      isPlayerInFiveM(displayNameForCheck),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+    ]).catch((err) => {
+      console.warn(`⚠️ FiveM check timeout สำหรับ ${displayNameForCheck}:`, err.message);
+      return true; // timeout → อนุญาตผ่านชั่วคราว
+    });
 
     if (!inGame) {
-      const players = await fetchFiveMPlayers();
+      // ถ้า isPlayerInFiveM ตอบ false แบบปกติ → ลอง fetch players อีกรอบด้วย timeout
+      const players = await Promise.race([
+        fetchFiveMPlayers(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ]).catch((err) => {
+        console.warn('⚠️ fetchFiveMPlayers timeout:', err.message);
+        return null;
+      });
+
       if (players !== null) {
         // เซิร์ฟเวอร์ online แต่ไม่เจอชื่อ → ขอ ID
         pendingIdCheck.set(user.id, { displayName: displayNameForCheck, startTime: new Date() });
