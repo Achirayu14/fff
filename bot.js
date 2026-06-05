@@ -339,67 +339,69 @@ client.once('ready', () => {
   // ── แจ้งเตือนลืมออกเวร ──────────────────────
   // เช็คทุก 5 นาที แจ้งเฉพาะคนที่ "ออกจากเกมแล้ว" แต่ยังไม่กดออกเวร
   // cooldown 1 ชม./คน เพื่อไม่ spam
-  const WARN_COOLDOWN_MS = 60 * 60 * 1000;
+const WARN_COOLDOWN_MS = 60 * 60 * 1000; // แจ้งซ้ำได้ทุก 1 ชม. ต่อคน
 
-  setInterval(async () => {
-    if (activeShifts.size === 0) return;
-    const now = Date.now();
+setInterval(async () => {
+  if (activeShifts.size === 0) return;
+  const now = Date.now();
 
-    // ดึง FiveM players ครั้งเดียวต่อรอบ
-    const players = await fetchFiveMPlayers();
+  // ดึง FiveM players ครั้งเดียวต่อรอบ
+  const players = await fetchFiveMPlayers();
 
-    // ถ้าดึงเซิร์ฟเวอร์ไม่ได้ (null) → ข้ามรอบนี้ทั้งหมด ไม่แจ้งผิดพลาด
-    if (players === null) {
-      console.log('⚠️ [ForgotCheck] ดึง FiveM ไม่ได้ — ข้ามรอบนี้');
-      return;
+  // ถ้าดึงเซิร์ฟเวอร์ไม่ได้เลย (null) → ข้ามรอบนี้ ไม่แจ้งเตือนผิดพลาด
+  if (players === null) {
+    console.log('⚠️ [ForgotCheck] ดึง FiveM ไม่ได้ — ข้ามรอบนี้');
+    return;
+  }
+
+  for (const [userId, shift] of activeShifts.entries()) {
+    if (pendingPhoto.has(userId)) continue;
+
+    const guild = client.guilds.cache.get(shift.guildId);
+    let displayName = 'Unknown';
+    if (guild) {
+      try {
+        const member = await guild.members.fetch(userId);
+        displayName = member.nickname || member.displayName || member.user.username;
+      } catch (_) {}
     }
 
-    for (const [userId, shift] of activeShifts.entries()) {
-      if (pendingPhoto.has(userId)) continue;
-
-      const guild = client.guilds.cache.get(shift.guildId);
-      let displayName = 'Unknown';
-      if (guild) {
-        try {
-          const member = await guild.members.fetch(userId);
-          displayName  = member.nickname || member.displayName || member.user.username;
-        } catch (_) {}
-      }
-
-      // ยังอยู่ในเกม → reset cooldown แล้วข้าม (ไม่แจ้ง)
-      const stillInGame = players.some((p) => namesMatch(displayName, p.name));
-      if (stillInGame) {
-        shift._lastWarnTime = 0;
-        continue;
-      }
-
-      // ออกจากเกมแล้ว แต่ยังไม่กดออกเวร → เช็ค cooldown
-      const lastWarnTime = shift._lastWarnTime || 0;
-      if (now - lastWarnTime < WARN_COOLDOWN_MS) continue;
-
-      shift._lastWarnTime = now;
-
-      const elapsed      = Math.floor((now - shift.startTime.getTime()) / 1000);
-      const forgotChannel = await getChannelById(CHANNEL_ID_FORGOT);
-      if (forgotChannel) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠️ เตือน: ออกจากเกมแล้วแต่ยังไม่กดออกเวร!')
-          .setDescription(`<@${userId}> ออกจากเกมแล้ว แต่**ยังไม่ได้กดออกเวร**`)
-          .addFields(
-            { name: '👤 พนักงาน',      value: displayName,                      inline: true  },
-            { name: '🕐 เข้าเวรตั้งแต่', value: discordFullTime(shift.startTime), inline: true  },
-            { name: '⏱️ ทำงานมาแล้ว',   value: formatDurationThai(elapsed),      inline: false },
-            { name: '📌 หมายเหตุ',       value: 'กรุณากดปุ่ม **ออกเวร** เพื่อบันทึกเวลาให้ถูกต้อง', inline: false },
-          )
-          .setColor(0xffa500)
-          .setTimestamp();
-        await forgotChannel.send({ content: `<@${userId}>`, embeds: [embed] });
-      }
-      console.log(`⚠️ เตือนลืมออกเวร (ออกจากเกมแล้ว): ${displayName}`);
+    // เช็คว่าคนนี้ยังอยู่ในเกมไหม
+    const stillInGame = players.some((p) => namesMatch(displayName, p.name));
+    if (stillInGame) {
+      // ยังอยู่ในเกม → reset cooldown ให้แจ้งใหม่ได้ทันทีที่ออกจากเกม
+      shift._lastWarnTime = 0;
+      continue;
     }
-  }, 5 * 60 * 1000); // ทุก 5 นาที
 
-  console.log('👁️ เช็คลืมออกเวรทุก 5 นาที (แจ้งเฉพาะคนที่ออกจากเกมแล้วแต่ยังไม่กดออกเวร)');
+    // ออกจากเกมแล้ว แต่ยังไม่กดออกเวร → เช็ค cooldown
+    const lastWarnTime = shift._lastWarnTime || 0;
+    if (now - lastWarnTime < WARN_COOLDOWN_MS) continue;
+
+    shift._lastWarnTime = now;
+
+    const elapsed = Math.floor((now - shift.startTime.getTime()) / 1000);
+    const forgotChannel = await getChannelById(CHANNEL_ID_FORGOT);
+    if (forgotChannel) {
+      const embed = new EmbedBuilder()
+        .setTitle('⚠️ เตือน: ออกจากเกมแล้วแต่ยังไม่กดออกเวร!')
+        .setDescription(`<@${userId}> ออกจากเกมแล้ว แต่**ยังไม่ได้กดออกเวร**`)
+        .addFields(
+          { name: '👤 พนักงาน', value: displayName, inline: true },
+          { name: '🕐 เข้าเวรตั้งแต่', value: discordFullTime(shift.startTime), inline: true },
+          { name: '⏱️ ทำงานมาแล้ว', value: formatDurationThai(elapsed), inline: false },
+          { name: '📌 หมายเหตุ', value: 'กรุณากดปุ่ม **ออกเวร** เพื่อบันทึกเวลาให้ถูกต้อง', inline: false },
+        )
+        .setColor(0xffa500)
+        .setTimestamp();
+      await forgotChannel.send({ content: `<@${userId}>`, embeds: [embed] });
+    }
+
+    console.log(`⚠️ เตือนลืมออกเวร (ออกจากเกมแล้ว): ${displayName}`);
+  }
+}, 5 * 60 * 1000); // เช็คทุก 5 นาที
+
+console.log('👁️ เช็คลืมออกเวรทุก 5 นาที (แจ้งเฉพาะคนที่ออกจากเกมแล้วแต่ยังไม่กดออกเวร)');
 });
 
 // ─────────────────────────────────────────────
